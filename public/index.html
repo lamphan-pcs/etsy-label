@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Etsy Label Merger</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                max-width: 800px;
+                margin: 2rem auto;
+                padding: 0 1rem;
+                background-color: #f4f4f9;
+                color: #333;
+            }
+            .container {
+                background: white;
+                padding: 2rem;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                margin-top: 0;
+                color: #f0541e;
+            }
+            .drop-zones {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+                flex-wrap: wrap;
+            }
+            .drop-zone {
+                flex: 1;
+                border: 2px dashed #ccc;
+                padding: 2rem;
+                text-align: center;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: border-color 0.3s;
+                min-width: 250px;
+            }
+            .drop-zone:hover,
+            .drop-zone.dragover {
+                border-color: #f0541e;
+                background-color: #fff5f2;
+            }
+            .file-info {
+                margin-top: 0.5rem;
+                font-weight: bold;
+                font-size: 0.9rem;
+                color: #666;
+            }
+            .btn {
+                background-color: #f0541e;
+                color: white;
+                border: none;
+                padding: 1rem 2rem;
+                font-size: 1rem;
+                border-radius: 4px;
+                cursor: pointer;
+                width: 100%;
+                transition: background 0.3s;
+            }
+            .btn:hover {
+                background-color: #d1400e;
+            }
+            .btn:disabled {
+                background-color: #ccc;
+                cursor: not-allowed;
+            }
+            input[type="file"] {
+                display: none;
+            }
+
+            /* Spinner */
+            .spinner {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                border-top-color: #fff;
+                animation: spin 1s ease-in-out infinite;
+                margin-right: 10px;
+                vertical-align: middle;
+                display: none;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            .loading .spinner {
+                display: inline-block;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Etsy Label Merger</h1>
+            <div
+                id="status"
+                style="
+                    margin-bottom: 1rem;
+                    color: #333;
+                    font-weight: bold;
+                    min-height: 1.5rem;
+                    text-align: center;
+                "
+            ></div>
+
+            <form id="uploadForm">
+                <div class="drop-zones">
+                    <div class="drop-zone" id="mainDropZone">
+                        <p style="font-size: 1.2rem; margin-bottom: 0.5rem">
+                            <strong>Drag & Drop BOTH files here</strong>
+                        </p>
+                        <p
+                            class="small"
+                            style="
+                                font-size: 0.8rem;
+                                color: #888;
+                                margin-top: 0;
+                            "
+                        >
+                            One with "label" in name = Cropped/Rotated<br />Other
+                            = Standard
+                        </p>
+                        <input
+                            type="file"
+                            id="filesInput"
+                            multiple
+                            style="display: none"
+                        />
+
+                        <div
+                            style="
+                                margin-top: 1.5rem;
+                                text-align: left;
+                                background: #fafafa;
+                                padding: 1rem;
+                                border-radius: 4px;
+                            "
+                        >
+                            <div
+                                id="file1-preview"
+                                style="margin-bottom: 8px; color: #999"
+                            >
+                                ⚪ Label 1 (Cropped): Not selected
+                            </div>
+                            <div id="file2-preview" style="color: #999">
+                                ⚪ Label 2 (Standard): Not selected
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn" disabled>
+                    <div class="spinner"></div>
+                    Process & Download
+                </button>
+            </form>
+        </div>
+
+        <script>
+            const dropZone = document.getElementById("mainDropZone");
+            const fileInput = document.getElementById("filesInput");
+            const statusDiv = document.getElementById("status");
+            const submitBtn = document.getElementById("submitBtn");
+            const file1Preview = document.getElementById("file1-preview");
+            const file2Preview = document.getElementById("file2-preview");
+
+            let label1File = null;
+            let label2File = null;
+
+            // Click to upload manually
+            dropZone.addEventListener("click", () => fileInput.click());
+            fileInput.addEventListener("change", (e) =>
+                handleFiles(e.target.files),
+            );
+
+            // Drag & Drop events
+            dropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropZone.classList.add("dragover");
+            });
+            dropZone.addEventListener("dragleave", () =>
+                dropZone.classList.remove("dragover"),
+            );
+            dropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                dropZone.classList.remove("dragover");
+                handleFiles(e.dataTransfer.files);
+            });
+
+            function handleFiles(files) {
+                if (!files || files.length === 0) return;
+
+                // AUTO-RESET LOGIC:
+                // If we already have both files loaded (previous job), assume this new drop is for a NEW order.
+                // Reset existing state so we don't mix old files with new ones.
+                if (label1File && label2File) {
+                    label1File = null;
+                    label2File = null;
+
+                    // Reset UI
+                    file1Preview.textContent =
+                        "⚪ Label 1 (Cropped): Not selected";
+                    file1Preview.style.color = "#999";
+                    file1Preview.style.fontWeight = "normal";
+
+                    file2Preview.textContent =
+                        "⚪ Label 2 (Standard): Not selected";
+                    file2Preview.style.color = "#999";
+                    file2Preview.style.fontWeight = "normal";
+
+                    statusDiv.textContent = "";
+                    // dropZone style reset if needed, though checkReady will update it
+                    dropZone.style.borderColor = "#ccc";
+                    dropZone.style.backgroundColor = "";
+                }
+
+                Array.from(files).forEach((file) => {
+                    const name = file.name.toLowerCase();
+
+                    // Logic: if name has "label" -> Label 1. Else -> Label 2.
+                    if (name.includes("label")) {
+                        label1File = file;
+                        file1Preview.textContent = `✅ Label 1 (Cropped): ${file.name}`;
+                        file1Preview.style.color = "#2e7d32"; // text-green-700
+                        file1Preview.style.fontWeight = "bold";
+                    } else {
+                        label2File = file;
+                        file2Preview.textContent = `✅ Label 2 (Standard): ${file.name}`;
+                        file2Preview.style.color = "#2e7d32";
+                        file2Preview.style.fontWeight = "bold";
+                    }
+                });
+
+                checkReady();
+            }
+
+            function checkReady() {
+                if (label1File && label2File) {
+                    // Visual feedback
+                    dropZone.style.borderColor = "#4CAF50";
+                    dropZone.style.backgroundColor = "#e8f5e9";
+
+                    // Auto Process
+                    processFiles();
+                } else {
+                    submitBtn.disabled = true;
+                    statusDiv.textContent = "Please select both files...";
+                    statusDiv.style.color = "#666";
+                }
+            }
+
+            // Extracted process function to allow auto-calling
+            async function processFiles() {
+                if (!label1File || !label2File) return;
+
+                // Update UI to loading state
+                submitBtn.classList.add("loading");
+                submitBtn.disabled = true; // Disable strictly while processing
+                statusDiv.textContent = "Processing...";
+                statusDiv.style.color = "#f0541e";
+
+                const formData = new FormData();
+                formData.append("label1", label1File);
+                formData.append("label2", label2File);
+
+                try {
+                    const response = await fetch("/merge", {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+
+                        // Try to get filename from headers, fallback to default
+                        let filename = "combined-label.pdf";
+                        const disposition = response.headers.get(
+                            "Content-Disposition",
+                        );
+                        const suggested = response.headers.get(
+                            "X-Suggested-Filename",
+                        );
+
+                        if (suggested) {
+                            filename = suggested;
+                        } else if (
+                            disposition &&
+                            disposition.indexOf("filename=") !== -1
+                        ) {
+                            const matches = /filename="?([^"]+)"?/.exec(
+                                disposition,
+                            );
+                            if (matches != null && matches[1]) {
+                                filename = matches[1];
+                            }
+                        }
+
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+
+                        statusDiv.textContent =
+                            "Success! Downloaded: " + filename;
+                        statusDiv.style.color = "green";
+                    } else {
+                        const errorText = await response.text();
+                        statusDiv.textContent = "Error: " + errorText;
+                        statusDiv.style.color = "red";
+                    }
+                } catch (err) {
+                    statusDiv.textContent = "Network Error";
+                    statusDiv.style.color = "red";
+                } finally {
+                    submitBtn.classList.remove("loading");
+                    submitBtn.disabled = false; // Re-enable so user can click again if desired
+                }
+            }
+
+            const form = document.getElementById("uploadForm");
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                processFiles();
+            });
+        </script>
+    </body>
+</html>

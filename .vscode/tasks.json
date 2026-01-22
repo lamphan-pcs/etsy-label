@@ -1,0 +1,89 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Label Processor",
+			"type": "shell",
+			"command": "node index.js",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Start Web Server",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Restarted)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Final)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Crop Updated)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Crop Flip)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (No Crop)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Final Crop 2)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Custom Margins)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Auto Detect)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Fully Auto)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Auto Reset)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
+		}
+	]
+}
