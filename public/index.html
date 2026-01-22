@@ -279,7 +279,7 @@
                         const blob = await response.blob();
 
                         // Try to get filename from headers, fallback to default
-                        let filename = "combined-label.pdf";
+                        let filename = "combined-label";
                         const disposition = response.headers.get(
                             "Content-Disposition",
                         );

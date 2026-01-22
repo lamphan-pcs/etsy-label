@@ -100,13 +100,13 @@ async function processLabels(label1Buffer, label2Buffer) {
 
     // Determine filename based on content of Label 2
     const orderInfo = await extractOrderId(label2Buffer);
-    let filename = "combined-label.pdf";
+    let filename = "combined-label";
 
     if (orderInfo) {
         if (orderInfo.type === "tiktok") {
-            filename = `${orderInfo.id}.pdf`;
+            filename = `${orderInfo.id}`;
         } else if (orderInfo.type === "etsy") {
-            filename = `${orderInfo.id}.pdf`;
+            filename = `${orderInfo.id}`;
         }
     }
 
