@@ -39,7 +39,7 @@ app.post(
                 // Sanitize filename to be safe for HTTP headers
                 const safeFilename = filename.replace(/[^a-zA-Z0-9.\-_]/g, "_");
 
-                res.setHeader("Content-Type", "application/pdf");
+                res.setHeader("Content-Type", "application/octet-stream");
                 res.setHeader(
                     "Content-Disposition",
                     `attachment; filename="${safeFilename}"`,
