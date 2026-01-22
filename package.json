@@ -1,19 +1,22 @@
 {
-  "name": "e-label",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "dotenv": "^17.2.3",
-    "express": "^5.2.1",
-    "multer": "^2.0.2",
-    "pdf-lib": "^1.17.1",
-    "pdf-parse": "^1.1.1"
-  }
+    "name": "e-label",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "description": "",
+    "engines": {
+        "node": ">=18.x"
+    },
+    "dependencies": {
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
+        "multer": "^2.0.2",
+        "pdf-lib": "^1.17.1",
+        "pdf-parse": "^1.1.1"
+    }
 }

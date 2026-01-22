@@ -84,6 +84,13 @@
 			"command": "node server.js",
 			"isBackground": true,
 			"group": "test"
+		},
+		{
+			"label": "Start Web Server (Vercel Ready)",
+			"type": "shell",
+			"command": "node server.js",
+			"isBackground": true,
+			"group": "test"
 		}
 	]
 }
