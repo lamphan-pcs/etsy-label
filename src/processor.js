@@ -2,11 +2,11 @@ const { PDFDocument, degrees } = require("pdf-lib");
 const pdfParse = require("pdf-parse");
 
 /**
- * Extracts order ID from PDF text based on TikTok or Etsy patterns.
+ * Extracts metadata from PDF text based on TikTok or Etsy patterns.
  * @param {Buffer} buffer - PDF file buffer
- * @returns {Promise<string|null>} - Extracted Order ID or null if not found
+ * @returns {Promise<Object|null>} - Extracted metadata or null
  */
-async function extractOrderId(buffer) {
+async function extractLabelData(buffer) {
     try {
         const data = await pdfParse(buffer);
         const text = data.text;
@@ -14,14 +14,49 @@ async function extractOrderId(buffer) {
         // TikTok pattern: "Order ID: xxxxxxxxxx"
         const tiktokMatch = text.match(/Order ID:\s*([A-Za-z0-9]+)/i);
         if (tiktokMatch) {
-            return { id: tiktokMatch[1].trim(), type: "tiktok" };
+            return {
+                id: tiktokMatch[1].trim(),
+                type: "tiktok",
+                date: "-",
+                tracking: "-",
+            };
         }
 
         // Etsy pattern: "Order #xxxxxxxx"
-        // Note: Etsy sometimes has spaces or different formats, but usually "Order #1234567890"
         const etsyMatch = text.match(/Order\s*#\s*([A-Za-z0-9]+)/i);
         if (etsyMatch) {
-            return { id: etsyMatch[1].trim(), type: "etsy" };
+            const orderId = etsyMatch[1].trim();
+
+            // Extract Date: "Order date\nJan 22, 2026"
+            // Matches "Jan 22, 2026" or similar
+            const dateMatch = text.match(
+                /Order date\s*\n\s*([A-Za-z]{3}\s\d{1,2},\s\d{4})/i,
+            );
+            let formattedDate = "-";
+            if (dateMatch) {
+                const dateStr = dateMatch[1].trim();
+                const d = new Date(dateStr);
+                if (!isNaN(d.getTime())) {
+                    // Format as MM/DD/YYYY
+                    const mm = String(d.getMonth() + 1).padStart(2, "0");
+                    const dd = String(d.getDate()).padStart(2, "0");
+                    const yyyy = d.getFullYear();
+                    formattedDate = `${mm}/${dd}/${yyyy}`;
+                } else {
+                    formattedDate = dateStr;
+                }
+            }
+
+            // Extract Tracking: "Tracking\n9400..."
+            const trackingMatch = text.match(/Tracking\s*\n\s*(\d+)/i);
+            const tracking = trackingMatch ? trackingMatch[1].trim() : "-";
+
+            return {
+                id: orderId,
+                type: "etsy",
+                date: formattedDate,
+                tracking: tracking,
+            };
         }
 
         return null; // Return null if no match found
@@ -99,20 +134,30 @@ async function processLabels(label1Buffer, label2Buffer) {
     pages2.forEach((page) => mergedPdf.addPage(page));
 
     // Determine filename based on content of Label 2
-    const orderInfo = await extractOrderId(label2Buffer);
+    const orderInfo = await extractLabelData(label2Buffer);
     let filename = "combined-label";
+    let metadata = {
+        orderId: "-",
+        date: "-",
+        tracking: "-",
+        type: "unknown",
+    };
 
     if (orderInfo) {
-        if (orderInfo.type === "tiktok") {
-            filename = `${orderInfo.id}`;
-        } else if (orderInfo.type === "etsy") {
+        if (orderInfo.type === "tiktok" || orderInfo.type === "etsy") {
             filename = `${orderInfo.id}`;
         }
+        metadata = {
+            orderId: orderInfo.id,
+            date: orderInfo.date,
+            tracking: orderInfo.tracking,
+            type: orderInfo.type,
+        };
     }
 
-    // Return the merged PDF bytes and filename
+    // Return the merged PDF bytes, filename and metadata
     const pdfBytes = await mergedPdf.save();
-    return { pdfBytes, filename };
+    return { pdfBytes, filename, metadata };
 }
 
-module.exports = { processLabels };
+module.exports = { processLabels, extractLabelData };

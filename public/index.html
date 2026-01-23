@@ -93,6 +93,39 @@
             .loading .spinner {
                 display: inline-block;
             }
+            .result-container {
+                margin-top: 2rem;
+                overflow-x: auto;
+            }
+            .data-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 1rem;
+                font-size: 0.9rem;
+            }
+            .data-table th,
+            .data-table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            .data-table th {
+                background-color: #f2f2f2;
+                color: #333;
+            }
+            .copy-btn {
+                background-color: #2e7d32;
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 4px;
+                cursor: pointer;
+                float: right;
+                margin-bottom: 0.5rem;
+            }
+            .copy-btn:hover {
+                background-color: #1b5e20;
+            }
         </style>
     </head>
     <body>
@@ -123,8 +156,8 @@
                                 margin-top: 0;
                             "
                         >
-                            One with "label" in name = Cropped/Rotated<br />Other
-                            = Standard
+                            Drop multiple pairs at once. <br />
+                            Matching: Label filename ↔ Order ID in slip
                         </p>
                         <input
                             type="file"
@@ -142,14 +175,8 @@
                                 border-radius: 4px;
                             "
                         >
-                            <div
-                                id="file1-preview"
-                                style="margin-bottom: 8px; color: #999"
-                            >
-                                ⚪ Label 1 (Cropped): Not selected
-                            </div>
-                            <div id="file2-preview" style="color: #999">
-                                ⚪ Label 2 (Standard): Not selected
+                            <div id="files-preview" style="color: #666">
+                                ⚪ No files selected
                             </div>
                         </div>
                     </div>
@@ -157,9 +184,33 @@
 
                 <button type="submit" class="btn" id="submitBtn" disabled>
                     <div class="spinner"></div>
-                    Process & Download
+                    Process All & Download
                 </button>
             </form>
+
+            <div
+                id="resultContainer"
+                class="result-container"
+                style="display: none"
+            >
+                <button id="copyBtn" class="copy-btn">Copy Row(s)</button>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date Ordered</th>
+                            <th>Order ID</th>
+                            <th>Packing List</th>
+                            <th>Picking List</th>
+                            <th>Order From</th>
+                            <th>From Whom</th>
+                            <th>Status</th>
+                            <th>Tracking Number</th>
+                            <th>Created Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
         </div>
 
         <script>
@@ -167,11 +218,9 @@
             const fileInput = document.getElementById("filesInput");
             const statusDiv = document.getElementById("status");
             const submitBtn = document.getElementById("submitBtn");
-            const file1Preview = document.getElementById("file1-preview");
-            const file2Preview = document.getElementById("file2-preview");
+            const filesPreview = document.getElementById("files-preview");
 
-            let label1File = null;
-            let label2File = null;
+            let selectedFiles = [];
 
             // Click to upload manually
             dropZone.addEventListener("click", () => fileInput.click());
@@ -196,78 +245,56 @@
             function handleFiles(files) {
                 if (!files || files.length === 0) return;
 
-                // AUTO-RESET LOGIC:
-                // If we already have both files loaded (previous job), assume this new drop is for a NEW order.
-                // Reset existing state so we don't mix old files with new ones.
-                if (label1File && label2File) {
-                    label1File = null;
-                    label2File = null;
+                // Reset previous selection on new drop
+                selectedFiles = Array.from(files);
 
-                    // Reset UI
-                    file1Preview.textContent =
-                        "⚪ Label 1 (Cropped): Not selected";
-                    file1Preview.style.color = "#999";
-                    file1Preview.style.fontWeight = "normal";
+                // Update UI
+                filesPreview.textContent = `✅ ${selectedFiles.length} files selected`;
+                filesPreview.style.color = "#2e7d32";
+                filesPreview.style.fontWeight = "bold";
 
-                    file2Preview.textContent =
-                        "⚪ Label 2 (Standard): Not selected";
-                    file2Preview.style.color = "#999";
-                    file2Preview.style.fontWeight = "normal";
-
-                    statusDiv.textContent = "";
-                    // dropZone style reset if needed, though checkReady will update it
-                    dropZone.style.borderColor = "#ccc";
-                    dropZone.style.backgroundColor = "";
-                }
-
-                Array.from(files).forEach((file) => {
-                    const name = file.name.toLowerCase();
-
-                    // Logic: if name has "label" -> Label 1. Else -> Label 2.
-                    if (name.includes("label")) {
-                        label1File = file;
-                        file1Preview.textContent = `✅ Label 1 (Cropped): ${file.name}`;
-                        file1Preview.style.color = "#2e7d32"; // text-green-700
-                        file1Preview.style.fontWeight = "bold";
-                    } else {
-                        label2File = file;
-                        file2Preview.textContent = `✅ Label 2 (Standard): ${file.name}`;
-                        file2Preview.style.color = "#2e7d32";
-                        file2Preview.style.fontWeight = "bold";
-                    }
-                });
+                // Visual feedback
+                dropZone.style.borderColor = "#4CAF50";
+                dropZone.style.backgroundColor = "#e8f5e9";
 
                 checkReady();
             }
 
             function checkReady() {
-                if (label1File && label2File) {
-                    // Visual feedback
-                    dropZone.style.borderColor = "#4CAF50";
-                    dropZone.style.backgroundColor = "#e8f5e9";
-
-                    // Auto Process
-                    processFiles();
+                if (selectedFiles.length > 0) {
+                    processFiles(); // Auto-process
                 } else {
                     submitBtn.disabled = true;
-                    statusDiv.textContent = "Please select both files...";
+                    statusDiv.textContent = "Please select files...";
                     statusDiv.style.color = "#666";
                 }
             }
 
             // Extracted process function to allow auto-calling
+            let currentTsvData = "";
+
+            document.getElementById("copyBtn").addEventListener("click", () => {
+                if (currentTsvData) copyToClipboard(currentTsvData);
+            });
+
             async function processFiles() {
-                if (!label1File || !label2File) return;
+                if (selectedFiles.length === 0) return;
 
                 // Update UI to loading state
                 submitBtn.classList.add("loading");
-                submitBtn.disabled = true; // Disable strictly while processing
+                submitBtn.disabled = true;
                 statusDiv.textContent = "Processing...";
                 statusDiv.style.color = "#f0541e";
 
+                // Hide table
+                document.getElementById("resultContainer").style.display =
+                    "none";
+                document.getElementById("tableBody").innerHTML = "";
+
                 const formData = new FormData();
-                formData.append("label1", label1File);
-                formData.append("label2", label2File);
+                selectedFiles.forEach((file) => {
+                    formData.append("files", file);
+                });
 
                 try {
                     const response = await fetch("/merge", {
@@ -276,55 +303,136 @@
                     });
 
                     if (response.ok) {
-                        const blob = await response.blob();
+                        const data = await response.json();
 
-                        // Try to get filename from headers, fallback to default
-                        let filename = "combined-label";
-                        const disposition = response.headers.get(
-                            "Content-Disposition",
-                        );
-                        const suggested = response.headers.get(
-                            "X-Suggested-Filename",
-                        );
+                        if (data.results && data.results.length > 0) {
+                            statusDiv.textContent = `Success! Processed ${data.results.length} pairs.`;
+                            statusDiv.style.color = "green";
 
-                        if (suggested) {
-                            filename = suggested;
-                        } else if (
-                            disposition &&
-                            disposition.indexOf("filename=") !== -1
-                        ) {
-                            const matches = /filename="?([^"]+)"?/.exec(
-                                disposition,
-                            );
-                            if (matches != null && matches[1]) {
-                                filename = matches[1];
+                            const allRows = [];
+
+                            // Process each result
+                            data.results.forEach((result) => {
+                                downloadPdf(result.pdfBase64, result.filename);
+                                const rowData = addTableRow(result.metadata);
+                                allRows.push(rowData);
+                            });
+
+                            if (data.errors && data.errors.length > 0) {
+                                statusDiv.textContent += ` (${data.errors.length} errors)`;
+                                console.warn(data.errors);
+                            }
+
+                            document.getElementById(
+                                "resultContainer",
+                            ).style.display = "block";
+
+                            currentTsvData = allRows.join("\n");
+                            copyToClipboard(currentTsvData);
+                        } else {
+                            statusDiv.textContent =
+                                "No valid pairs found to process.";
+                            if (data.errors) {
+                                alert("Errors:\n" + data.errors.join("\n"));
                             }
                         }
-
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        window.URL.revokeObjectURL(url);
-
-                        statusDiv.textContent =
-                            "Success! Downloaded: " + filename;
-                        statusDiv.style.color = "green";
                     } else {
                         const errorText = await response.text();
                         statusDiv.textContent = "Error: " + errorText;
                         statusDiv.style.color = "red";
                     }
                 } catch (err) {
+                    console.error(err);
                     statusDiv.textContent = "Network Error";
                     statusDiv.style.color = "red";
                 } finally {
                     submitBtn.classList.remove("loading");
-                    submitBtn.disabled = false; // Re-enable so user can click again if desired
+                    submitBtn.disabled = false;
                 }
+            }
+
+            function downloadPdf(base64Data, filename) {
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], {
+                    type: "application/octet-stream",
+                });
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            }
+
+            function addTableRow(meta) {
+                const tbody = document.getElementById("tableBody");
+
+                const date = meta.date || "-";
+                const orderId = meta.orderId || "-";
+                const packingList = "-";
+                const pickingList = "-";
+                const orderFrom =
+                    meta.type === "etsy"
+                        ? "Etsy"
+                        : meta.type === "tiktok"
+                          ? "TikTok"
+                          : "-";
+                const fromWhom = "Real Order";
+                const status = "Awaiting collection";
+                const tracking = meta.tracking || "-";
+                const createdTime = date;
+
+                const rowValues = [
+                    date,
+                    orderId,
+                    packingList,
+                    pickingList,
+                    orderFrom,
+                    fromWhom,
+                    status,
+                    tracking,
+                    createdTime,
+                ];
+
+                const tr = document.createElement("tr");
+                rowValues.forEach((val) => {
+                    const td = document.createElement("td");
+                    td.textContent = val;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+
+                return rowValues.join("\t");
+            }
+
+            function copyToClipboard(text) {
+                navigator.clipboard
+                    .writeText(text)
+                    .then(() => {
+                        const originalText = statusDiv.textContent;
+                        statusDiv.textContent += " (Copied to clipboard!)";
+                        setTimeout(() => {
+                            // Only replace if the status hasn't changed completely
+                            if (
+                                statusDiv.textContent.includes(
+                                    "(Copied to clipboard!)",
+                                )
+                            ) {
+                                statusDiv.textContent = originalText; // Revert
+                            }
+                        }, 3000);
+                    })
+                    .catch((err) => {
+                        console.error("Failed to copy: ", err);
+                    });
             }
 
             const form = document.getElementById("uploadForm");
