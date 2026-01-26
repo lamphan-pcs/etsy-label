@@ -3,7 +3,12 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const fsPromises = require("fs").promises;
-const { processLabels, extractLabelData } = require("./src/processor");
+const {
+    processLabels,
+    extractLabelData,
+    extractBulkLabels,
+    extractBulkSlips,
+} = require("./src/processor");
 require("dotenv").config();
 
 const app = express();
@@ -58,12 +63,10 @@ app.post("/set-input-dir", express.json(), async (req, res) => {
     // Basic validation: check if existing logic works or if we should create it
     // User asked to "select a default folder", presumably one that exists.
     if (!fs.existsSync(newPath)) {
-        return res
-            .status(400)
-            .json({
-                success: false,
-                error: "Directory does not exist on the server.",
-            });
+        return res.status(400).json({
+            success: false,
+            error: "Directory does not exist on the server.",
+        });
     }
 
     try {
@@ -200,13 +203,116 @@ app.post("/merge", upload.any(), async (req, res) => {
             return res.status(400).send("No files uploaded.");
         }
 
+        const isBulk = req.body.isBulk === "true";
+
         // Map multer files to our format
         const files = req.files.map((f) => ({
             originalName: f.originalname,
             buffer: f.buffer,
         }));
 
-        const { results, errors } = await processFilePairs(files);
+        let results = [];
+        let errors = [];
+
+        if (isBulk) {
+            // BULK PROCESSING LOGIC
+            if (files.length < 2) {
+                return res
+                    .status(400)
+                    .send(
+                        "Bulk processing requires at least 2 files (Labels & Slips).",
+                    );
+            }
+
+            console.log("Starting Bulk Processing...");
+
+            // 1. Identify which is Labels and which is Slips
+            // Heuristic A: Try to extract Bulk Labels from the first file.
+            // If we find IDs, assumes it's the Label file.
+            let labelFile = null;
+            let slipFile = null;
+            let extractedLabels = [];
+
+            // Try File 0 as Label File
+            console.log(`Checking ${files[0].originalName} as Label File...`);
+            let candidates = await extractBulkLabels(files[0].buffer);
+            if (candidates.length > 0) {
+                labelFile = files[0];
+                slipFile = files[1];
+                extractedLabels = candidates;
+            } else {
+                // Try File 1 as Label File
+                console.log(
+                    `Checking ${files[1].originalName} as Label File...`,
+                );
+                candidates = await extractBulkLabels(files[1].buffer);
+                if (candidates.length > 0) {
+                    labelFile = files[1];
+                    slipFile = files[0];
+                    extractedLabels = candidates;
+                }
+            }
+
+            if (!labelFile) {
+                return res
+                    .status(400)
+                    .send(
+                        "Could not identify a Bulk Label file (2 labels/page with Order IDs).",
+                    );
+            }
+            console.log(
+                `Identified Label File: ${labelFile.originalName} (${extractedLabels.length} labels found)`,
+            );
+
+            // 2. Extract Slips from the other file
+            console.log(`Extracting slips from ${slipFile.originalName}...`);
+            const extractedSlips = await extractBulkSlips(
+                slipFile.buffer,
+                slipFile.originalName,
+            );
+            console.log(`Found ${extractedSlips.length} slips.`);
+
+            // 3. Match and Process
+            for (const slip of extractedSlips) {
+                const orderId = slip.id;
+                // Find matching label (Top or Bottom)
+                const matchingLabel = extractedLabels.find(
+                    (l) => l.id === orderId,
+                );
+
+                if (matchingLabel) {
+                    console.log(`Match found for Order ${orderId}`);
+                    try {
+                        const output = await processLabels(
+                            matchingLabel.buffer,
+                            slip.buffer,
+                            { 
+                                isBulk: true,
+                                position: matchingLabel.position || 'top' 
+                            }
+                        );
+                        results.push({
+                            filename: output.filename,
+                            pdfBase64: Buffer.from(output.pdfBytes).toString(
+                                "base64",
+                            ),
+                            metadata: output.metadata,
+                        });
+                    } catch (e) {
+                        errors.push(
+                            `Error merging Order ${orderId}: ${e.message}`,
+                        );
+                    }
+                } else {
+                    errors.push(`No label found for Order ID ${orderId}`);
+                }
+            }
+        } else {
+            // EXISTING LOGIC
+            const outcome = await processFilePairs(files);
+            results = outcome.results;
+            errors = outcome.errors;
+        }
 
         if (results.length === 0 && errors.length > 0) {
             return res

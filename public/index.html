@@ -119,7 +119,8 @@
             }
             .row-checkbox,
             #autoSelectAllCheck,
-            #manualSelectAllCheck {
+            #manualSelectAllCheck,
+            #bulkSelectAllCheck {
                 transform: scale(1.5);
                 cursor: pointer;
             }
@@ -369,6 +370,56 @@
                     </div>
                 </div>
 
+                <div
+                    class="drop-zones"
+                    style="border-top: 1px solid #eee; padding-top: 1rem"
+                >
+                    <div
+                        class="drop-zone folder-mode"
+                        id="bulkDropZone"
+                        style="background: #f3e5f5; border-color: #ce93d8"
+                    >
+                        <p
+                            style="
+                                font-size: 1.2rem;
+                                margin-bottom: 0.5rem;
+                                color: #6a1b9a;
+                            "
+                        >
+                            <strong>Bulk Processing</strong>
+                        </p>
+                        <p
+                            class="small"
+                            style="
+                                font-size: 0.8rem;
+                                color: #666;
+                                margin-top: 0;
+                            "
+                        >
+                            Drop 2 files: One with multiple Labels (2/page) and
+                            one with multiple Slips.
+                            <br />
+                            Auto-matches by Order ID.
+                        </p>
+                        <input
+                            type="file"
+                            id="bulkFilesInput"
+                            multiple
+                            style="display: none"
+                        />
+                        <div
+                            id="bulk-files-preview"
+                            style="
+                                margin-top: 1rem;
+                                color: #666;
+                                font-weight: bold;
+                            "
+                        >
+                            ⚪ No bulk files selected
+                        </div>
+                    </div>
+                </div>
+
                 <div style="display: flex; gap: 1rem; margin-top: 1rem">
                     <button
                         type="button"
@@ -435,6 +486,57 @@
                     <tbody id="manualTableBody"></tbody>
                 </table>
             </div>
+
+            <!-- Bulk Result Container -->
+            <div
+                id="bulkResultContainer"
+                class="result-container"
+                style="
+                    display: none;
+                    margin-top: 2rem;
+                    border-top: 2px dashed #ddd;
+                    padding-top: 2rem;
+                "
+            >
+                <h3 style="margin-top: 0; color: #7b1fa2">
+                    Bulk Processing Results
+                </h3>
+                <div
+                    style="
+                        display: flex;
+                        gap: 10px;
+                        justify-content: flex-end;
+                        margin-bottom: 0.5rem;
+                    "
+                >
+                    <button id="bulkDownloadCopyBtn" class="download-btn">
+                        Download & Copy Selected
+                    </button>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px">
+                                <input
+                                    type="checkbox"
+                                    id="bulkSelectAllCheck"
+                                />
+                            </th>
+                            <th>Date Ordered</th>
+                            <th>Order ID</th>
+                            <th>Packing List</th>
+                            <th>Picking List</th>
+                            <th>Order From</th>
+                            <th>From Whom</th>
+                            <th>Status</th>
+                            <th>Tracking Number</th>
+                            <th>Created Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulkTableBody"></tbody>
+                </table>
+            </div>
         </div>
 
         <script>
@@ -451,30 +553,51 @@
             const showConfigBtn = document.getElementById("showConfigBtn");
             const configError = document.getElementById("config-error");
 
+            // New Bulk Elements
+            const bulkDropZone = document.getElementById("bulkDropZone");
+            const bulkFilesInput = document.getElementById("bulkFilesInput");
+            const bulkFilesPreview =
+                document.getElementById("bulk-files-preview");
+
+            // Replaced bulkModeCheck with separate drop zone logic
+            // const bulkModeCheck = document.getElementById("bulkModeCheck");
+
             let selectedFiles = [];
+            let selectedBulkFiles = []; // Storage for bulk files
 
             // Storage for results
             let autoScanResults = [];
             let manualScanResults = [];
+            let bulkScanResults = [];
 
             // Auto Scan on Load
             document.addEventListener("DOMContentLoaded", () => {
                 scanDefaultFolder();
                 setupActionListeners("auto", () => autoScanResults);
                 setupActionListeners("manual", () => manualScanResults);
+                setupActionListeners("bulk", () => bulkScanResults);
             });
 
             // Reset Handler
             resetBtn.addEventListener("click", () => {
                 // Clear selection
                 selectedFiles = [];
-                // Clear input value so same files can be selected again
+                selectedBulkFiles = []; // Clear bulk
+
+                // Clear inputs
                 fileInput.value = "";
+                bulkFilesInput.value = "";
 
                 // Clear UI
                 updatePreviews();
+                updateBulkPreviews();
+
                 dropZone.style.removeProperty("border-color");
                 dropZone.style.removeProperty("background-color");
+
+                // Return bulk zone to default inline styles
+                bulkDropZone.style.backgroundColor = "#f3e5f5";
+                bulkDropZone.style.borderColor = "#ce93d8";
 
                 // Reset submit button state
                 checkReady();
@@ -486,8 +609,18 @@
                 manualScanResults = [];
                 document.getElementById("manualSelectAllCheck").checked = false;
 
+                // Clear Bulk Results Section
+                document.getElementById("bulkResultContainer").style.display =
+                    "none";
+                document.getElementById("bulkTableBody").innerHTML = "";
+                bulkScanResults = [];
+                document.getElementById("bulkSelectAllCheck").checked = false;
+
                 // Clear status if it was about manual process
-                if (statusDiv.textContent.includes("(Manual)")) {
+                if (
+                    statusDiv.textContent.includes("(Manual)") ||
+                    statusDiv.textContent.includes("(Bulk)")
+                ) {
                     statusDiv.textContent = "";
                 }
             });
@@ -600,7 +733,7 @@
                 handleFiles(e.target.files),
             );
 
-            // Drag & Drop events
+            // Drag & Drop events (Manual)
             dropZone.addEventListener("dragover", (e) => {
                 e.preventDefault();
                 dropZone.classList.add("dragover");
@@ -614,12 +747,42 @@
                 handleFiles(e.dataTransfer.files);
             });
 
+            // BULK Drag & Drop Listeners
+            bulkDropZone.addEventListener("click", () =>
+                bulkFilesInput.click(),
+            );
+            bulkFilesInput.addEventListener("change", (e) =>
+                handleBulkFiles(e.target.files),
+            );
+
+            bulkDropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                bulkDropZone.classList.add("dragover");
+            });
+            bulkDropZone.addEventListener("dragleave", () =>
+                bulkDropZone.classList.remove("dragover"),
+            );
+            bulkDropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                bulkDropZone.classList.remove("dragover");
+                handleBulkFiles(e.dataTransfer.files);
+            });
+
             function handleFiles(files) {
                 if (!files || files.length === 0) return;
                 selectedFiles = selectedFiles.concat(Array.from(files));
                 updatePreviews();
                 dropZone.style.borderColor = "#4CAF50";
                 dropZone.style.backgroundColor = "#e8f5e9";
+                checkReady();
+            }
+
+            function handleBulkFiles(files) {
+                if (!files || files.length === 0) return;
+                selectedBulkFiles = selectedBulkFiles.concat(Array.from(files));
+                updateBulkPreviews();
+                bulkDropZone.style.borderColor = "#7b1fa2";
+                bulkDropZone.style.backgroundColor = "#e1bee7";
                 checkReady();
             }
 
@@ -634,10 +797,30 @@
                 }
             }
 
+            function updateBulkPreviews() {
+                if (selectedBulkFiles.length === 0) {
+                    bulkFilesPreview.textContent = "⚪ No bulk files selected";
+                    bulkFilesPreview.style.color = "#666";
+                } else {
+                    bulkFilesPreview.textContent = `✅ ${selectedBulkFiles.length} bulk files selected`;
+                    bulkFilesPreview.style.color = "#6a1b9a";
+                    bulkFilesPreview.style.fontWeight = "bold";
+                }
+            }
+
             function checkReady() {
-                if (selectedFiles.length > 0) {
+                const manualReady = selectedFiles.length > 0;
+                const bulkReady = selectedBulkFiles.length > 0;
+
+                if (manualReady || bulkReady) {
                     submitBtn.disabled = false;
-                    statusDiv.textContent = `${selectedFiles.length} files ready to process.`;
+                    if (bulkReady && manualReady) {
+                        statusDiv.textContent = `${selectedFiles.length} manual files & ${selectedBulkFiles.length} bulk files ready.`;
+                    } else if (bulkReady) {
+                        statusDiv.textContent = `${selectedBulkFiles.length} bulk files ready to process.`;
+                    } else {
+                        statusDiv.textContent = `${selectedFiles.length} files ready to process.`;
+                    }
                     statusDiv.style.color = "#333";
                 } else {
                     submitBtn.disabled = true;
@@ -704,7 +887,19 @@
             }
 
             async function processFiles() {
-                if (selectedFiles.length === 0) return;
+                // Determine Mode
+                let isBulk = false;
+                let filesToProcess = [];
+
+                if (selectedBulkFiles.length > 0) {
+                    isBulk = true;
+                    filesToProcess = selectedBulkFiles;
+                } else if (selectedFiles.length > 0) {
+                    isBulk = false;
+                    filesToProcess = selectedFiles;
+                } else {
+                    return;
+                }
 
                 // Update UI to loading state
                 submitBtn.classList.add("loading");
@@ -719,10 +914,18 @@
                 manualScanResults = [];
                 document.getElementById("manualSelectAllCheck").checked = false;
 
+                // Reset Bulk Container
+                document.getElementById("bulkResultContainer").style.display =
+                    "none";
+                document.getElementById("bulkTableBody").innerHTML = "";
+                bulkScanResults = [];
+                document.getElementById("bulkSelectAllCheck").checked = false;
+
                 const formData = new FormData();
-                selectedFiles.forEach((file) => {
+                filesToProcess.forEach((file) => {
                     formData.append("files", file);
                 });
+                formData.append("isBulk", isBulk);
 
                 try {
                     const response = await fetch("/merge", {
@@ -734,25 +937,45 @@
                         const data = await response.json();
 
                         if (data.results && data.results.length > 0) {
-                            statusDiv.textContent = `Success! Processed ${data.results.length} pairs (Manual).`;
+                            const modeStr = isBulk ? "Bulk" : "Manual";
+                            statusDiv.textContent = `Success! Processed ${data.results.length} pairs (${modeStr}).`;
                             statusDiv.style.color = "green";
 
-                            manualScanResults = data.results;
-                            renderResults(
-                                manualScanResults,
-                                "manualResultContainer",
-                                "manualTableBody",
-                                "manual",
-                            );
+                            if (isBulk) {
+                                bulkScanResults = data.results;
+                                renderResults(
+                                    bulkScanResults,
+                                    "bulkResultContainer",
+                                    "bulkTableBody",
+                                    "bulk",
+                                );
 
-                            // Auto-select all for Drag & Drop
-                            document.getElementById(
-                                "manualSelectAllCheck",
-                            ).checked = true;
-                            document
-                                .getElementById("manualTableBody")
-                                .querySelectorAll(".row-checkbox")
-                                .forEach((cb) => (cb.checked = true));
+                                // Auto-select all for Bulk
+                                document.getElementById(
+                                    "bulkSelectAllCheck",
+                                ).checked = true;
+                                document
+                                    .getElementById("bulkTableBody")
+                                    .querySelectorAll(".row-checkbox")
+                                    .forEach((cb) => (cb.checked = true));
+                            } else {
+                                manualScanResults = data.results;
+                                renderResults(
+                                    manualScanResults,
+                                    "manualResultContainer",
+                                    "manualTableBody",
+                                    "manual",
+                                );
+
+                                // Auto-select all for Drag & Drop
+                                document.getElementById(
+                                    "manualSelectAllCheck",
+                                ).checked = true;
+                                document
+                                    .getElementById("manualTableBody")
+                                    .querySelectorAll(".row-checkbox")
+                                    .forEach((cb) => (cb.checked = true));
+                            }
 
                             if (data.errors && data.errors.length > 0) {
                                 statusDiv.textContent += ` (${data.errors.length} errors)`;
@@ -764,10 +987,13 @@
                                 downloadPdf(result.pdfBase64, result.filename);
                             });
 
-                            // Copy all manual rows
+                            // Copy all rows
+                            const targetBodyId = isBulk
+                                ? "bulkTableBody"
+                                : "manualTableBody";
                             const allRowsCopy = [];
                             document
-                                .querySelectorAll("#manualTableBody tr")
+                                .querySelectorAll(`#${targetBodyId} tr`)
                                 .forEach((tr) => {
                                     allRowsCopy.push(
                                         Array.from(tr.cells)
@@ -779,8 +1005,24 @@
                             copyToClipboard(allRowsCopy.join("\n"));
 
                             // Clear files after successful processing
-                            selectedFiles = [];
-                            updatePreviews();
+                            if (isBulk) {
+                                selectedBulkFiles = [];
+                                bulkFilesInput.value = "";
+                                updateBulkPreviews();
+                                bulkDropZone.style.removeProperty(
+                                    "border-color",
+                                );
+                                bulkDropZone.style.backgroundColor = "#f3e5f5";
+                                bulkDropZone.style.borderColor = "#ce93d8";
+                            } else {
+                                selectedFiles = [];
+                                fileInput.value = "";
+                                updatePreviews();
+                                dropZone.style.removeProperty("border-color");
+                                dropZone.style.removeProperty(
+                                    "background-color",
+                                );
+                            }
                             checkReady();
                         } else {
                             statusDiv.textContent =
@@ -794,9 +1036,24 @@
                             }
 
                             // Reset on Error too
-                            selectedFiles = [];
-                            fileInput.value = "";
-                            updatePreviews();
+                            if (isBulk) {
+                                selectedBulkFiles = [];
+                                bulkFilesInput.value = "";
+                                updateBulkPreviews();
+                                bulkDropZone.style.removeProperty(
+                                    "border-color",
+                                );
+                                bulkDropZone.style.backgroundColor = "#f3e5f5";
+                                bulkDropZone.style.borderColor = "#ce93d8";
+                            } else {
+                                selectedFiles = [];
+                                fileInput.value = "";
+                                updatePreviews();
+                                dropZone.style.removeProperty("border-color");
+                                dropZone.style.removeProperty(
+                                    "background-color",
+                                );
+                            }
                             checkReady();
                         }
                     } else {
@@ -806,9 +1063,20 @@
                         alert("Error:\n" + errorText);
 
                         // Reset on Server Error
-                        selectedFiles = [];
-                        fileInput.value = "";
-                        updatePreviews();
+                        if (isBulk) {
+                            selectedBulkFiles = [];
+                            bulkFilesInput.value = "";
+                            updateBulkPreviews();
+                            bulkDropZone.style.removeProperty("border-color");
+                            bulkDropZone.style.backgroundColor = "#f3e5f5";
+                            bulkDropZone.style.borderColor = "#ce93d8";
+                        } else {
+                            selectedFiles = [];
+                            fileInput.value = "";
+                            updatePreviews();
+                            dropZone.style.removeProperty("border-color");
+                            dropZone.style.removeProperty("background-color");
+                        }
                         checkReady();
                     }
                 } catch (err) {
@@ -817,9 +1085,20 @@
                     statusDiv.style.color = "red";
 
                     // Reset on Network Error
-                    selectedFiles = [];
-                    fileInput.value = "";
-                    updatePreviews();
+                    if (typeof isBulk !== "undefined" && isBulk) {
+                        selectedBulkFiles = [];
+                        bulkFilesInput.value = "";
+                        updateBulkPreviews();
+                        bulkDropZone.style.removeProperty("border-color");
+                        bulkDropZone.style.backgroundColor = "#f3e5f5";
+                        bulkDropZone.style.borderColor = "#ce93d8";
+                    } else {
+                        selectedFiles = [];
+                        fileInput.value = "";
+                        updatePreviews();
+                        dropZone.style.removeProperty("border-color");
+                        dropZone.style.removeProperty("background-color");
+                    }
                     checkReady();
                 } finally {
                     submitBtn.classList.remove("loading");
