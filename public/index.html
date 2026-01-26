@@ -7,7 +7,7 @@
         <style>
             body {
                 font-family: sans-serif;
-                max-width: 800px;
+                max-width: 1400px;
                 margin: 2rem auto;
                 padding: 0 1rem;
                 background-color: #f4f4f9;
@@ -113,6 +113,16 @@
                 background-color: #f2f2f2;
                 color: #333;
             }
+            .data-table tbody tr:hover {
+                background-color: #e3f2fd;
+                cursor: pointer;
+            }
+            .row-checkbox,
+            #autoSelectAllCheck,
+            #manualSelectAllCheck {
+                transform: scale(1.5);
+                cursor: pointer;
+            }
             .copy-btn {
                 background-color: #2e7d32;
                 color: white;
@@ -121,16 +131,48 @@
                 border-radius: 4px;
                 cursor: pointer;
                 float: right;
+                margin-left: 0.5rem;
                 margin-bottom: 0.5rem;
             }
             .copy-btn:hover {
                 background-color: #1b5e20;
             }
+            .download-btn {
+                background-color: #1976d2;
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 4px;
+                cursor: pointer;
+                float: right;
+                margin-bottom: 0.5rem;
+            }
+            .download-btn:hover {
+                background-color: #1565c0;
+            }
+            .folder-mode {
+                background: #e3f2fd;
+                border: 2px dashed #90caf9;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                border-radius: 8px;
+                text-align: center;
+            }
+            .config-bar {
+                margin: 1rem 0;
+                padding: 0.5rem;
+                background: #f5f5f5;
+                border-radius: 4px;
+                display: flex;
+                gap: 1rem;
+                align-items: center;
+                justify-content: center;
+            }
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>Etsy Label Merger</h1>
+            <h1>Croissant</h1>
             <div
                 id="status"
                 style="
@@ -141,6 +183,151 @@
                     text-align: center;
                 "
             ></div>
+            <div style="text-align: right; margin-bottom: 0.5rem">
+                <button
+                    type="button"
+                    id="showConfigBtn"
+                    style="
+                        background: none;
+                        border: none;
+                        color: #1976d2;
+                        text-decoration: underline;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    "
+                >
+                    📂 Change Input Folder
+                </button>
+            </div>
+            <div class="config-bar" style="display: none">
+                <!-- Hidden config checkboxed -->
+            </div>
+
+            <!-- Removed Folder Mode UI, replaced with default scan info -->
+            <div
+                id="scan-info"
+                style="
+                    background: #e3f2fd;
+                    border: 1px solid #90caf9;
+                    padding: 1rem;
+                    margin-bottom: 1.5rem;
+                    border-radius: 4px;
+                    text-align: center;
+                    display: none;
+                "
+            ></div>
+
+            <!-- Auto Scan Results Section -->
+            <div
+                id="autoScanResultContainer"
+                class="result-container"
+                style="
+                    display: none;
+                    margin-bottom: 2rem;
+                    border-bottom: 2px dashed #ddd;
+                    padding-bottom: 2rem;
+                "
+            >
+                <h3 style="margin-top: 0; color: #1565c0">Auto-Scan Results</h3>
+                <div
+                    style="
+                        display: flex;
+                        gap: 10px;
+                        justify-content: flex-end;
+                        margin-bottom: 0.5rem;
+                    "
+                >
+                    <button id="autoDownloadCopyBtn" class="download-btn">
+                        Download & Copy Selected
+                    </button>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px">
+                                <input
+                                    type="checkbox"
+                                    id="autoSelectAllCheck"
+                                />
+                            </th>
+                            <th>Date Ordered</th>
+                            <th>Order ID</th>
+                            <th>Packing List</th>
+                            <th>Picking List</th>
+                            <th>Order From</th>
+                            <th>From Whom</th>
+                            <th>Status</th>
+                            <th>Tracking Number</th>
+                            <th>Created Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="autoTableBody"></tbody>
+                </table>
+            </div>
+
+            <div
+                id="config-panel"
+                style="
+                    background: #fff3e0;
+                    border: 1px solid #ffb74d;
+                    padding: 1.5rem;
+                    margin-bottom: 1.5rem;
+                    border-radius: 4px;
+                    display: none;
+                    text-align: center;
+                "
+            >
+                <h3 style="margin-top: 0; color: #f57c00">
+                    Setup Process Folder
+                </h3>
+                <p>
+                    Please enter the full folder path where your PDFs are
+                    stored.
+                </p>
+                <div
+                    style="
+                        display: flex;
+                        justify-content: center;
+                        gap: 10px;
+                        flex-wrap: wrap;
+                    "
+                >
+                    <input
+                        type="text"
+                        id="configPathInput"
+                        placeholder="C:\Users\Name\My Labels"
+                        style="
+                            flex: 1;
+                            max-width: 400px;
+                            padding: 0.5rem;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                        "
+                    />
+                    <button
+                        id="saveConfigBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.5rem 1.5rem;
+                            background-color: #f57c00;
+                        "
+                    >
+                        Save Folder
+                    </button>
+                    <div class="spinner" id="configSpinner"></div>
+                </div>
+                <p
+                    id="config-error"
+                    style="
+                        color: red;
+                        font-size: 0.9rem;
+                        margin-top: 5px;
+                        display: none;
+                    "
+                ></p>
+            </div>
 
             <form id="uploadForm">
                 <div class="drop-zones">
@@ -182,21 +369,58 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn" id="submitBtn" disabled>
-                    <div class="spinner"></div>
-                    Process All & Download
-                </button>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem">
+                    <button
+                        type="button"
+                        class="btn"
+                        id="resetBtn"
+                        style="background-color: #757575; flex: 1"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="submit"
+                        class="btn"
+                        id="submitBtn"
+                        disabled
+                        style="flex: 2"
+                    >
+                        <div class="spinner"></div>
+                        Process All & Download
+                    </button>
+                </div>
             </form>
 
             <div
-                id="resultContainer"
+                id="manualResultContainer"
                 class="result-container"
                 style="display: none"
             >
-                <button id="copyBtn" class="copy-btn">Copy Row(s)</button>
+                <h3 style="margin-top: 0; color: #f0541e">
+                    Drag & Drop Results
+                </h3>
+                <div
+                    style="
+                        display: flex;
+                        gap: 10px;
+                        justify-content: flex-end;
+                        margin-bottom: 0.5rem;
+                    "
+                >
+                    <button id="manualDownloadCopyBtn" class="download-btn">
+                        Download & Copy Selected
+                    </button>
+                </div>
+
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th style="width: 30px">
+                                <input
+                                    type="checkbox"
+                                    id="manualSelectAllCheck"
+                                />
+                            </th>
                             <th>Date Ordered</th>
                             <th>Order ID</th>
                             <th>Packing List</th>
@@ -208,7 +432,7 @@
                             <th>Created Time</th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody"></tbody>
+                    <tbody id="manualTableBody"></tbody>
                 </table>
             </div>
         </div>
@@ -218,9 +442,157 @@
             const fileInput = document.getElementById("filesInput");
             const statusDiv = document.getElementById("status");
             const submitBtn = document.getElementById("submitBtn");
+            const resetBtn = document.getElementById("resetBtn");
             const filesPreview = document.getElementById("files-preview");
+            const scanInfo = document.getElementById("scan-info");
+            const configPanel = document.getElementById("config-panel");
+            const configPathInput = document.getElementById("configPathInput");
+            const saveConfigBtn = document.getElementById("saveConfigBtn");
+            const showConfigBtn = document.getElementById("showConfigBtn");
+            const configError = document.getElementById("config-error");
 
             let selectedFiles = [];
+
+            // Storage for results
+            let autoScanResults = [];
+            let manualScanResults = [];
+
+            // Auto Scan on Load
+            document.addEventListener("DOMContentLoaded", () => {
+                scanDefaultFolder();
+                setupActionListeners("auto", () => autoScanResults);
+                setupActionListeners("manual", () => manualScanResults);
+            });
+
+            // Reset Handler
+            resetBtn.addEventListener("click", () => {
+                // Clear selection
+                selectedFiles = [];
+                // Clear input value so same files can be selected again
+                fileInput.value = "";
+
+                // Clear UI
+                updatePreviews();
+                dropZone.style.removeProperty("border-color");
+                dropZone.style.removeProperty("background-color");
+
+                // Reset submit button state
+                checkReady();
+
+                // Clear Results Section
+                document.getElementById("manualResultContainer").style.display =
+                    "none";
+                document.getElementById("manualTableBody").innerHTML = "";
+                manualScanResults = [];
+                document.getElementById("manualSelectAllCheck").checked = false;
+
+                // Clear status if it was about manual process
+                if (statusDiv.textContent.includes("(Manual)")) {
+                    statusDiv.textContent = "";
+                }
+            });
+
+            // Toggle Config Panel
+            showConfigBtn.addEventListener("click", () => {
+                const isHidden = configPanel.style.display === "none";
+                configPanel.style.display = isHidden ? "block" : "none";
+                if (isHidden) {
+                    configPathInput.focus();
+                }
+            });
+
+            // Config / Setup Logic
+            saveConfigBtn.addEventListener("click", async () => {
+                const newPath = configPathInput.value.trim();
+                if (!newPath) {
+                    showConfigError("Please enter a path.");
+                    return;
+                }
+
+                showConfigError("");
+                saveConfigBtn.disabled = true;
+                saveConfigBtn.classList.add("loading");
+
+                try {
+                    const res = await fetch("/set-input-dir", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ path: newPath }),
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        configPanel.style.display = "none";
+                        // Re-trigger scan
+                        scanDefaultFolder();
+                    } else {
+                        showConfigError(
+                            data.error || "Failed to update configuration.",
+                        );
+                    }
+                } catch (e) {
+                    showConfigError("Network error.");
+                } finally {
+                    saveConfigBtn.disabled = false;
+                    saveConfigBtn.classList.remove("loading");
+                }
+            });
+
+            function showConfigError(msg) {
+                if (msg) {
+                    configError.textContent = msg;
+                    configError.style.display = "block";
+                } else {
+                    configError.style.display = "none";
+                }
+            }
+
+            async function scanDefaultFolder() {
+                try {
+                    statusDiv.textContent = "Scanning default input folder...";
+                    const res = await fetch("/scan-default");
+                    const data = await res.json();
+
+                    if (data.configNeeded) {
+                        statusDiv.textContent = "";
+                        configPanel.style.display = "block";
+                        return;
+                    }
+
+                    if (data.results && data.results.length > 0) {
+                        statusDiv.textContent = `Auto-processed ${data.results.length} pairs from ${data.scannedDir || "folder"}.`;
+                        statusDiv.style.color = "green";
+
+                        autoScanResults = data.results;
+                        renderResults(
+                            autoScanResults,
+                            "autoScanResultContainer",
+                            "autoTableBody",
+                            "auto",
+                        );
+
+                        scanInfo.style.display = "block";
+                        scanInfo.innerHTML = `<strong>Auto-Scan Complete:</strong> Found ${data.results.length} pairs in <br><code>${data.scannedDir}</code> <br><span style="font-size:0.8rem">Check boxes to download/copy.</span>`;
+                    } else {
+                        statusDiv.textContent = `Scanned ${data.scannedDir || "default folder"}. No PDF pairs found.`;
+                        statusDiv.style.color = "#666";
+                        scanInfo.style.display = "block";
+                        scanInfo.innerHTML = `<strong>Scan Complete:</strong> No PDF pairs found in <br><code>${data.scannedDir}</code>.`;
+
+                        document.getElementById(
+                            "autoScanResultContainer",
+                        ).style.display = "none";
+
+                        if (data.errors && data.errors.length > 0) {
+                            console.log(data.errors);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Auto scan failed", e);
+                    statusDiv.textContent =
+                        "Auto-scan failed (server offline?)";
+                }
+            }
 
             // Click to upload manually
             dropZone.addEventListener("click", () => fileInput.click());
@@ -244,25 +616,29 @@
 
             function handleFiles(files) {
                 if (!files || files.length === 0) return;
-
-                // Reset previous selection on new drop
-                selectedFiles = Array.from(files);
-
-                // Update UI
-                filesPreview.textContent = `✅ ${selectedFiles.length} files selected`;
-                filesPreview.style.color = "#2e7d32";
-                filesPreview.style.fontWeight = "bold";
-
-                // Visual feedback
+                selectedFiles = selectedFiles.concat(Array.from(files));
+                updatePreviews();
                 dropZone.style.borderColor = "#4CAF50";
                 dropZone.style.backgroundColor = "#e8f5e9";
-
                 checkReady();
+            }
+
+            function updatePreviews() {
+                if (selectedFiles.length === 0) {
+                    filesPreview.textContent = "⚪ No files selected";
+                    filesPreview.style.color = "#666";
+                } else {
+                    filesPreview.textContent = `✅ ${selectedFiles.length} files selected (Ready to process)`;
+                    filesPreview.style.color = "#2e7d32";
+                    filesPreview.style.fontWeight = "bold";
+                }
             }
 
             function checkReady() {
                 if (selectedFiles.length > 0) {
-                    processFiles(); // Auto-process
+                    submitBtn.disabled = false;
+                    statusDiv.textContent = `${selectedFiles.length} files ready to process.`;
+                    statusDiv.style.color = "#333";
                 } else {
                     submitBtn.disabled = true;
                     statusDiv.textContent = "Please select files...";
@@ -270,12 +646,62 @@
                 }
             }
 
-            // Extracted process function to allow auto-calling
-            let currentTsvData = "";
+            // Helper to Setup Listeners dynamically
+            function setupActionListeners(prefix, getResultsFn) {
+                const selectAll = document.getElementById(
+                    `${prefix}SelectAllCheck`,
+                );
+                const downloadBtn = document.getElementById(
+                    `${prefix}DownloadCopyBtn`,
+                );
+                const tbody = document.getElementById(`${prefix}TableBody`);
 
-            document.getElementById("copyBtn").addEventListener("click", () => {
-                if (currentTsvData) copyToClipboard(currentTsvData);
-            });
+                if (!selectAll || !downloadBtn) return;
+
+                selectAll.addEventListener("change", (e) => {
+                    const isChecked = e.target.checked;
+                    // Scoped query selector for this table body only
+                    const checkboxes = tbody.querySelectorAll(".row-checkbox");
+                    checkboxes.forEach((cb) => (cb.checked = isChecked));
+                });
+
+                downloadBtn.addEventListener("click", () => {
+                    const checkboxes = tbody.querySelectorAll(
+                        ".row-checkbox:checked",
+                    );
+                    if (checkboxes.length === 0) {
+                        alert("Please select items to download & copy.");
+                        return;
+                    }
+
+                    const results = getResultsFn();
+
+                    // 1. Download
+                    checkboxes.forEach((cb) => {
+                        const resultIndex = parseInt(cb.dataset.index);
+                        if (!isNaN(resultIndex) && results[resultIndex]) {
+                            const result = results[resultIndex];
+                            downloadPdf(result.pdfBase64, result.filename);
+                        }
+                    });
+
+                    // 2. Copy
+                    const rows = [];
+                    checkboxes.forEach((cb) => {
+                        const row = cb.closest("tr");
+                        // Skip first cell (checkbox)
+                        const rowText = Array.from(row.cells)
+                            .slice(1)
+                            .map((c) => c.textContent)
+                            .join("\t");
+                        rows.push(rowText);
+                    });
+
+                    if (rows.length > 0) {
+                        copyToClipboard(rows.join("\n"));
+                    }
+                });
+            }
 
             async function processFiles() {
                 if (selectedFiles.length === 0) return;
@@ -286,10 +712,12 @@
                 statusDiv.textContent = "Processing...";
                 statusDiv.style.color = "#f0541e";
 
-                // Hide table
-                document.getElementById("resultContainer").style.display =
+                // Reset Manual Container
+                document.getElementById("manualResultContainer").style.display =
                     "none";
-                document.getElementById("tableBody").innerHTML = "";
+                document.getElementById("manualTableBody").innerHTML = "";
+                manualScanResults = [];
+                document.getElementById("manualSelectAllCheck").checked = false;
 
                 const formData = new FormData();
                 selectedFiles.forEach((file) => {
@@ -306,49 +734,112 @@
                         const data = await response.json();
 
                         if (data.results && data.results.length > 0) {
-                            statusDiv.textContent = `Success! Processed ${data.results.length} pairs.`;
+                            statusDiv.textContent = `Success! Processed ${data.results.length} pairs (Manual).`;
                             statusDiv.style.color = "green";
 
-                            const allRows = [];
+                            manualScanResults = data.results;
+                            renderResults(
+                                manualScanResults,
+                                "manualResultContainer",
+                                "manualTableBody",
+                                "manual",
+                            );
 
-                            // Process each result
-                            data.results.forEach((result) => {
-                                downloadPdf(result.pdfBase64, result.filename);
-                                const rowData = addTableRow(result.metadata);
-                                allRows.push(rowData);
-                            });
+                            // Auto-select all for Drag & Drop
+                            document.getElementById(
+                                "manualSelectAllCheck",
+                            ).checked = true;
+                            document
+                                .getElementById("manualTableBody")
+                                .querySelectorAll(".row-checkbox")
+                                .forEach((cb) => (cb.checked = true));
 
                             if (data.errors && data.errors.length > 0) {
                                 statusDiv.textContent += ` (${data.errors.length} errors)`;
                                 console.warn(data.errors);
                             }
 
-                            document.getElementById(
-                                "resultContainer",
-                            ).style.display = "block";
+                            // AUTO DOWNLOAD/COPY FOR MANUAL FLOW (Restored behavior)
+                            data.results.forEach((result) => {
+                                downloadPdf(result.pdfBase64, result.filename);
+                            });
 
-                            currentTsvData = allRows.join("\n");
-                            copyToClipboard(currentTsvData);
+                            // Copy all manual rows
+                            const allRowsCopy = [];
+                            document
+                                .querySelectorAll("#manualTableBody tr")
+                                .forEach((tr) => {
+                                    allRowsCopy.push(
+                                        Array.from(tr.cells)
+                                            .slice(1)
+                                            .map((c) => c.textContent)
+                                            .join("\t"),
+                                    );
+                                });
+                            copyToClipboard(allRowsCopy.join("\n"));
+
+                            // Clear files after successful processing
+                            selectedFiles = [];
+                            updatePreviews();
+                            checkReady();
                         } else {
                             statusDiv.textContent =
                                 "No valid pairs found to process.";
-                            if (data.errors) {
+                            if (data.errors && data.errors.length > 0) {
                                 alert("Errors:\n" + data.errors.join("\n"));
+                            } else {
+                                alert(
+                                    "No pairs found. Ensure matching file names (Order ID in filename).",
+                                );
                             }
+
+                            // Reset on Error too
+                            selectedFiles = [];
+                            fileInput.value = "";
+                            updatePreviews();
+                            checkReady();
                         }
                     } else {
                         const errorText = await response.text();
                         statusDiv.textContent = "Error: " + errorText;
                         statusDiv.style.color = "red";
+                        alert("Error:\n" + errorText);
+
+                        // Reset on Server Error
+                        selectedFiles = [];
+                        fileInput.value = "";
+                        updatePreviews();
+                        checkReady();
                     }
                 } catch (err) {
                     console.error(err);
                     statusDiv.textContent = "Network Error";
                     statusDiv.style.color = "red";
+
+                    // Reset on Network Error
+                    selectedFiles = [];
+                    fileInput.value = "";
+                    updatePreviews();
+                    checkReady();
                 } finally {
                     submitBtn.classList.remove("loading");
                     submitBtn.disabled = false;
                 }
+            }
+
+            function renderResults(results, containerId, tbodyId, type) {
+                document.getElementById(containerId).style.display = "block";
+                const tbody = document.getElementById(tbodyId);
+                tbody.innerHTML = "";
+
+                results.forEach((result, index) => {
+                    const rowData = addTableRow(
+                        result.metadata,
+                        index,
+                        tbody,
+                        type,
+                    );
+                });
             }
 
             function downloadPdf(base64Data, filename) {
@@ -372,9 +863,7 @@
                 window.URL.revokeObjectURL(url);
             }
 
-            function addTableRow(meta) {
-                const tbody = document.getElementById("tableBody");
-
+            function addTableRow(meta, index, tbody, type) {
                 const date = meta.date || "-";
                 const orderId = meta.orderId || "-";
                 const packingList = "-";
@@ -403,6 +892,24 @@
                 ];
 
                 const tr = document.createElement("tr");
+
+                // Checkbox column
+                const tdCheck = document.createElement("td");
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.className = "row-checkbox";
+                checkbox.dataset.index = index;
+                checkbox.dataset.type = type; // 'auto' or 'manual'
+                tdCheck.appendChild(checkbox);
+                tr.appendChild(tdCheck);
+
+                // Row click toggles checkbox
+                tr.addEventListener("click", (e) => {
+                    if (e.target !== checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                    }
+                });
+
                 rowValues.forEach((val) => {
                     const td = document.createElement("td");
                     td.textContent = val;
@@ -420,13 +927,16 @@
                         const originalText = statusDiv.textContent;
                         statusDiv.textContent += " (Copied to clipboard!)";
                         setTimeout(() => {
-                            // Only replace if the status hasn't changed completely
                             if (
                                 statusDiv.textContent.includes(
                                     "(Copied to clipboard!)",
                                 )
                             ) {
-                                statusDiv.textContent = originalText; // Revert
+                                statusDiv.textContent =
+                                    statusDiv.textContent.replace(
+                                        " (Copied to clipboard!)",
+                                        "",
+                                    );
                             }
                         }, 3000);
                     })
