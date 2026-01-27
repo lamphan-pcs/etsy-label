@@ -3,11 +3,14 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const fsPromises = require("fs").promises;
+const { exec } = require("child_process");
 const {
     processLabels,
     extractLabelData,
     extractBulkLabels,
     extractBulkSlips,
+    getIdsFromPdf,
+    isSlip,
 } = require("./src/processor");
 require("dotenv").config();
 
@@ -86,13 +89,61 @@ async function processFilePairs(fileObjects) {
     const shippingLabels = [];
     const orderSlips = [];
 
-    fileObjects.forEach((f) => {
-        if (f.originalName.toLowerCase().includes("label")) {
+    // Classification with Content Check
+    for (const f of fileObjects) {
+        const detectedSlip = await isSlip(f.buffer);
+        if (detectedSlip) {
+            orderSlips.push(f);
+        } else if (f.originalName.toLowerCase().includes("label")) {
             shippingLabels.push(f);
         } else {
-            orderSlips.push(f);
+            // Fallback: If not explicitly a slip, and filename doesn't say label.
+            // Check if it MIGHT be a label?
+            // For safety, previous logic defaulted to orderSlips.
+            // But now we know explicit slips have the marker.
+            // If it doesn't have the marker, it's increasingly likely to be the label (or a weird file).
+            // Let's stick to the heuristic: if it has "slip" -> slip, else ?
+
+            // If filenames are "Scan.pdf" (Label) and "Order.pdf" (Slip with marker).
+            // Order.pdf -> detectedSlip=true -> orderSlips.
+            // Scan.pdf -> detectedSlip=false. name no "label".
+            // If we put Scan.pdf in orderSlips, we have 0 labels.
+            // If we put Scan.pdf in shippingLabels, we might be right!
+
+            // Heuristic change: If we already have explicit slips, maybe this is a label?
+            // Let's assume if it is NOT a detected slip, treat as label potential?
+            // "orderSlips" are loop drivers. "shippingLabels" are lookups.
+            // If we misclassify a Slip as Label, we look up against it - no content match found usually.
+            // If we misclassify a Label as Slip, we try to extract metadata from it - might succeed, then look for match in empty Label list.
+
+            // For now, let's keep it simple: If it's NOT a detected Slip, and we haven't found a "label" keyword...
+            // Checking content for "Tracking" or "USPS" might be better but let's just stick to what we know.
+            if (f.originalName.toLowerCase().includes("slip")) {
+                orderSlips.push(f);
+            } else {
+                // No "label", no "slip", no content marker.
+                // Default to Slip (old behavior) or Label?
+                orderSlips.push(f);
+            }
         }
-    });
+    }
+
+    // Cache content IDs for labels to allow content-based processing
+    // This avoids re-parsing the PDF for every slip
+    const labelContentCache = new Map(); // filename -> [ids]
+    for (const label of shippingLabels) {
+        try {
+            const ids = await getIdsFromPdf(label.buffer);
+            labelContentCache.set(label.originalName, ids);
+            if (ids.length > 0) {
+                console.log(
+                    `Pre-scanned ${label.originalName}: Found IDs ${ids.join(", ")}`,
+                );
+            }
+        } catch (e) {
+            console.warn(`Failed to pre-scan ${label.originalName}`);
+        }
+    }
 
     const results = [];
     const errors = [];
@@ -115,14 +166,33 @@ async function processFilePairs(fileObjects) {
             const orderId = metadata.id;
             console.log(`Slip ${slip.originalName} has Order ID: ${orderId}`);
 
-            const matchingLabel = shippingLabels.find((l) =>
+            // 1. Try Filename Match
+            let matchingLabel = shippingLabels.find((l) =>
                 l.originalName.includes(orderId),
             );
+
+            // 2. Try Content Match (if not found by filename)
+            if (!matchingLabel) {
+                for (const label of shippingLabels) {
+                    const ids = labelContentCache.get(label.originalName);
+                    if (ids && ids.includes(orderId)) {
+                        matchingLabel = label;
+                        console.log(
+                            `Found content match for ${orderId} in ${label.originalName}`,
+                        );
+                        break;
+                    }
+                }
+            }
 
             if (matchingLabel) {
                 console.log(
                     `Found matching label: ${matchingLabel.originalName}`,
                 );
+                // processLabels now handles picking the right crop based on the slip's ID logic if we pass it,
+                // or it re-extracts. Safe to just call it, but verify latest processor.js logic.
+                // processor.js: "const slipMeta = await extractLabelData(label2Buffer);" -> It re-reads slip buffer to get targetID.
+                // This is fine.
                 const output = await processLabels(
                     matchingLabel.buffer,
                     slip.buffer,
@@ -226,6 +296,47 @@ app.get("/scan-default", async (req, res) => {
         console.error("Scan Error:", err);
         res.status(500).send("Scan Error: " + err.message);
     }
+});
+
+app.get("/pick-folder", (req, res) => {
+    // PowerShell using OpenFileDialog hack to get a modern Explorer-style folder picker
+    const psScript = `
+        Add-Type -AssemblyName System.Windows.Forms
+        $f = New-Object System.Windows.Forms.OpenFileDialog
+        $f.ValidateNames = $false
+        $f.CheckFileExists = $false
+        $f.CheckPathExists = $true
+        $f.FileName = "Select Folder"
+        $f.Title = "Select Input Folder (Navigate inside and click Open)"
+        $f.Filter = "Folders|*.none"
+        if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+             $path = [System.IO.Path]::GetDirectoryName($f.FileName)
+             Write-Output $path
+        }
+    `;
+
+    // Encode as Base64 to safely pass complex scripts to PowerShell
+    // PowerShell expects UTF-16LE encoding for Base64 strings
+    const encodedScript = Buffer.from(psScript, "utf16le").toString("base64");
+    
+    // Run powershell with -EncodedCommand
+    const command = `powershell -NoProfile -ExecutionPolicy Bypass -sta -EncodedCommand ${encodedScript}`;
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error("Folder picker error:", error);
+            console.error("Stderr:", stderr); 
+            // Return the specific error to help debugging
+            return res.json({ success: false, error: "Could not open dialog: " + stderr });
+        }
+
+        const selectedPath = stdout.trim();
+        if (selectedPath) {
+            res.json({ success: true, path: selectedPath });
+        } else {
+            res.json({ success: false, cancelled: true });
+        }
+    });
 });
 
 // API Endpoint to handle file upload and processing

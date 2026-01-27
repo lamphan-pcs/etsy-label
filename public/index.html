@@ -315,6 +315,20 @@
                         "
                     />
                     <button
+                        id="browseFolderBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.5rem 1rem;
+                            background-color: #eee;
+                            color: #333;
+                            border: 1px solid #ccc;
+                        "
+                        title="Browse Folder"
+                    >
+                        📁 Browse
+                    </button>
+                    <button
                         id="saveConfigBtn"
                         class="btn"
                         style="
@@ -445,7 +459,7 @@
                         style="flex: 2"
                     >
                         <div class="spinner"></div>
-                        Process All & Download
+                        Process
                     </button>
                 </div>
             </form>
@@ -573,6 +587,7 @@
             const scanInfo = document.getElementById("scan-info");
             const configPanel = document.getElementById("config-panel");
             const configPathInput = document.getElementById("configPathInput");
+            const browseFolderBtn = document.getElementById("browseFolderBtn");
             const saveConfigBtn = document.getElementById("saveConfigBtn");
             const showConfigBtn = document.getElementById("showConfigBtn");
             const configError = document.getElementById("config-error");
@@ -655,6 +670,28 @@
                 configPanel.style.display = isHidden ? "block" : "none";
                 if (isHidden) {
                     configPathInput.focus();
+                }
+            });
+
+            // Browse Handler
+            browseFolderBtn.addEventListener("click", async () => {
+                try {
+                    browseFolderBtn.classList.add("loading");
+                    browseFolderBtn.disabled = true;
+
+                    const res = await fetch("/pick-folder");
+                    const data = await res.json();
+
+                    if (data.success && data.path) {
+                        configPathInput.value = data.path;
+                    } else if (data.error) {
+                        showConfigError(data.error);
+                    }
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    browseFolderBtn.classList.remove("loading");
+                    browseFolderBtn.disabled = false;
                 }
             });
 
@@ -884,7 +921,9 @@
                         // Filter out cells with 'no-copy' class
                         const rowText = Array.from(row.cells)
                             .slice(1)
-                            .filter(cell => !cell.classList.contains('no-copy'))
+                            .filter(
+                                (cell) => !cell.classList.contains("no-copy"),
+                            )
                             .map((c) => c.textContent)
                             .join("\t");
                         rows.push(rowText);
@@ -1034,10 +1073,10 @@
                                 console.warn(data.errors);
                             }
 
-                            // AUTO DOWNLOAD/COPY FOR MANUAL FLOW (Restored behavior)
-                            data.results.forEach((result) => {
-                                downloadPdf(result.pdfBase64, result.filename);
-                            });
+                            // AUTO DOWNLOAD REMOVED based on user request
+                            // data.results.forEach((result) => {
+                            //    downloadPdf(result.pdfBase64, result.filename);
+                            // });
 
                             // Copy all rows
                             const targetBodyId = isBulk
@@ -1050,7 +1089,12 @@
                                     allRowsCopy.push(
                                         Array.from(tr.cells)
                                             .slice(1)
-                                            .filter(cell => !cell.classList.contains('no-copy'))
+                                            .filter(
+                                                (cell) =>
+                                                    !cell.classList.contains(
+                                                        "no-copy",
+                                                    ),
+                                            )
                                             .map((c) => c.textContent)
                                             .join("\t"),
                                     );
@@ -1211,13 +1255,13 @@
                 const status = "Awaiting collection";
                 const tracking = meta.tracking || "-";
                 const createdTime = date;
-                
+
                 // Format file timestamp
                 let downloadDate = "-";
                 if (result.fileDate) {
                     const fd = new Date(result.fileDate);
                     if (!isNaN(fd.getTime())) {
-                       downloadDate = fd.toLocaleString();
+                        downloadDate = fd.toLocaleString();
                     }
                 }
 
@@ -1231,7 +1275,7 @@
                     status,
                     tracking,
                     createdTime,
-                    downloadDate
+                    downloadDate,
                 ];
 
                 const tr = document.createElement("tr");

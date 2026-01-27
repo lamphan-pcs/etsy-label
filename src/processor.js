@@ -13,16 +13,16 @@ const DEFAULT_CROP = {
 const BULK_CROP_TOP = {
     visualTopMargin: 70,
     visualBottomMargin: 70,
-    visualLeftMargin: 31,
-    visualRightMargin: 68,
+    visualLeftMargin: 27,
+    visualRightMargin: 64,
 };
 
 // "Left Half" (Bottom Label) - Needs less cropping on Left/Right
 const BULK_CROP_BOTTOM = {
     visualTopMargin: 70,
     visualBottomMargin: 70,
-    visualLeftMargin: 68, // Reduced from 20 ("left margin should be less")
-    visualRightMargin: 32, // Reduced from 60 ("right margin is too much cropped")
+    visualLeftMargin: 64, // Reduced from 20 ("left margin should be less")
+    visualRightMargin: 28, // Reduced from 60 ("right margin is too much cropped")
 };
 
 /**
@@ -112,23 +112,6 @@ async function processLabels(label1Buffer, label2Buffer, options = {}) {
     let isBulk = options.isBulk || false;
     let position = options.position || "top"; // Default to top/standard behavior
 
-    // Auto-detect if Label 1 contains an Order ID (implies it needs Bulk-style cropping)
-    // Only applies if not already in bulk mode
-    if (!isBulk) {
-        try {
-            const meta = await extractLabelData(label1Buffer);
-            if (meta && meta.id) {
-                console.log(
-                    `Detected Order ID ${meta.id} in matching label. using Bulk Crop config (Top).`,
-                );
-                isBulk = true;
-                position = "top";
-            }
-        } catch (e) {
-            console.warn("Error checking label content:", e);
-        }
-    }
-
     // Create a new PDF document
     const mergedPdf = await PDFDocument.create();
 
@@ -143,6 +126,75 @@ async function processLabels(label1Buffer, label2Buffer, options = {}) {
     // Dimensions of the page
     const { width, height } = page1.getSize();
     console.log(`Label 1 Dimensions: ${width}x${height}`);
+
+    // Auto-detect if Label 1 contains an Order ID (implies it needs Bulk-style cropping)
+    // Only applies if not already in bulk mode AND if the page is large (e.g. Letter size)
+    // We avoid doing this for small pages (4x6) to prevent accidental over-cropping.
+    if (!isBulk && height > 600) {
+        try {
+            // 1. Get the Target Order ID from the Slip (Label 2)
+            const slipMeta = await extractLabelData(label2Buffer);
+            const targetOrderId = slipMeta ? slipMeta.id : null;
+
+            if (targetOrderId) {
+                // 2. Scan Label 1 for ALL Order IDs
+                const data = await pdfParse(label1Buffer);
+                const text = data.text;
+                // Match all Order IDs
+                const matches = [
+                    ...text.matchAll(/Order\s*(?:#|ID)[:\s]*(\d+)/gi),
+                ].map((m) => m[1]);
+
+                if (matches.length > 0) {
+                    // Check if our target ID exists in the label file
+                    const index = matches.indexOf(targetOrderId);
+
+                    if (index !== -1) {
+                        console.log(
+                            `Auto-detected matches in Label File: ${matches.join(", ")}`,
+                        );
+                        isBulk = true;
+                        // If it's the second match (index 1), assume it's the bottom label
+                        if (index === 1) {
+                            position = "bottom";
+                            console.log(
+                                `Target ${targetOrderId} is match #${index + 1} -> Selecting BOTTOM half.`,
+                            );
+                        } else {
+                            position = "top";
+                            console.log(
+                                `Target ${targetOrderId} is match #${index + 1} -> Selecting TOP half.`,
+                            );
+                        }
+                    } else {
+                        // ID not found in label file text, but filename matched?
+                        // Or user just dragged random files.
+                        // If matches exist but don't match target, we might be looking at the wrong file or wrong half.
+                        // Check if maybe it's just a "First Available" fallback?
+                        // For safety, if we found Order IDs but NOT our target, do we switch to bulk?
+                        // Maybe not. If we switch to bulk Top, we might show the wrong label.
+                        // But if we don't switch, we show the whole page (uncropped) which is also bad (2 labels on 1 page).
+                        // Let's assume if IDs are present, it's a Label Sheet. Default to Top is safer than Full Page.
+                        console.log(
+                            "Order IDs found but no match for target. Defaulting to Bulk Top.",
+                        );
+                        isBulk = true;
+                        position = "top";
+                    }
+                }
+            } else {
+                // No ID in slip? Can't match.
+                // Check if label has ID anyway to trigger crop?
+                const meta = await extractLabelData(label1Buffer);
+                if (meta && meta.id) {
+                    isBulk = true;
+                    position = "top";
+                }
+            }
+        } catch (e) {
+            console.warn("Error checking label content:", e);
+        }
+    }
 
     // Rotate first (90 degrees clockwise)
     page1.setRotation(degrees(90));
@@ -250,6 +302,14 @@ async function processLabels(label1Buffer, label2Buffer, options = {}) {
  * @returns {Promise<Array<{id: string, buffer: Buffer}>>}
  */
 async function extractBulkLabels(buffer) {
+    // Check for exclusion marker first (User detected confusion)
+    if (await isSlip(buffer)) {
+        console.log(
+            "File detected as Slip via 'rubyvibeco.etsy.com' marker. Skipping label extraction.",
+        );
+        return [];
+    }
+
     const pdfDoc = await PDFDocument.load(buffer);
     const pageCount = pdfDoc.getPageCount();
     const extractedLabels = [];
@@ -276,62 +336,98 @@ async function extractBulkLabels(buffer) {
         const page = pdfDoc.getPage(i);
         const { width, height } = page.getSize();
 
-        // Save individual page as buffer to read text
+        // 1. Create Buffers for Physical Splits straight away
+        // This helps us isolate text extraction if needed
         const singlePageDoc = await PDFDocument.create();
         const [copiedPage] = await singlePageDoc.copyPages(pdfDoc, [i]);
         singlePageDoc.addPage(copiedPage);
         const pageBuffer = Buffer.from(await singlePageDoc.save());
 
-        const ids = await getPageIds(pageBuffer);
-
-        if (ids.length === 0) continue;
-
-        // TOP HALF
-        // Always exists if we have at least 1 ID
+        // --- PREPARE SPLIT BUFFERS ---
+        // Top Half
         const topDoc = await PDFDocument.create();
-        // Embed the single page PDF into the new Top Document so we can draw it
         const [embeddedTop] = await topDoc.embedPdf(pageBuffer);
         const topPage = topDoc.addPage([width, height / 2]);
-
-        // Draw the full page shifted down so the Top Half (y=H/2 to H) sits at (y=0 to H/2)
-        topPage.drawPage(embeddedTop, {
-            x: 0,
-            y: -height / 2, // Shift down
-            width: width,
-            height: height,
-        });
+        topPage.drawPage(embeddedTop, { x: 0, y: -height / 2, width, height });
         const topBuffer = Buffer.from(await topDoc.save());
 
-        extractedLabels.push({
-            id: ids[0],
-            buffer: topBuffer,
-            position: "top",
-        });
-        console.log(`Found Bulk Label ID (Top): ${ids[0]}`);
+        // Bottom Half
+        const botDoc = await PDFDocument.create();
+        const [embeddedBot] = await botDoc.embedPdf(pageBuffer);
+        const botPage = botDoc.addPage([width, height / 2]);
+        botPage.drawPage(embeddedBot, { x: 0, y: 0, width, height });
+        const botBuffer = Buffer.from(await botDoc.save());
 
-        // BOTTOM HALF
-        // Only if we have 2 IDs
-        if (ids.length >= 2) {
-            const botDoc = await PDFDocument.create();
-            // Embed the single page PDF into the new Bottom Document so we can draw it
-            const [embeddedBot] = await botDoc.embedPdf(pageBuffer);
-            const botPage = botDoc.addPage([width, height / 2]);
+        // 2. Scan for IDs
+        // Strategy: Scan the whole page first to know truth.
+        // Then scan splits to confirm location if possible.
+        const pageIds = await getPageIds(pageBuffer);
+        let topIds = await getPageIds(topBuffer);
+        let botIds = await getPageIds(botBuffer);
 
-            // Draw the full page at 0,0 so the Bottom Half (y=0 to H/2) sits at (y=0 to H/2)
-            botPage.drawPage(embeddedBot, {
-                x: 0,
-                y: 0,
-                width: width,
-                height: height,
-            });
-            const botBuffer = Buffer.from(await botDoc.save());
+        console.log(`Page ${i + 1}: Found Global IDs: ${pageIds.join(", ")}`);
+        console.log(`   Split Top IDs: ${topIds.join(", ")}`);
+        console.log(`   Split Bot IDs: ${botIds.join(", ")}`);
 
+        // Heuristic Reconciliation
+        let finalTopId = null;
+        let finalBotId = null;
+
+        // TOP LOGIC
+        if (topIds.length > 0) {
+            finalTopId = topIds[0];
+        } else if (pageIds.length > 0) {
+            // Fallback: First ID on page is likely Top
+            finalTopId = pageIds[0];
+            console.log(
+                `   Fallback: Assigned Top ID ${finalTopId} from global list.`,
+            );
+        }
+
+        // BOTTOM LOGIC
+        if (botIds.length > 0) {
+            finalBotId = botIds[0];
+        } else if (pageIds.length >= 2) {
+            // Fallback: Second ID on page is likely Bottom
+            finalBotId = pageIds[1];
+            console.log(
+                `   Fallback: Assigned Bot ID ${finalBotId} from global list.`,
+            );
+        } else if (pageIds.length === 1 && topIds.length === 0) {
+            // Edge case: 1 ID found globally. Top split found nothing. Bot split found nothing.
+            // We assigned it to Top above.
+            // Do nothing for Bot.
+        }
+
+        // Avoid duplication if logic assigns same ID to both (unlikely given checks, but possible if text matches weirdly)
+        if (finalTopId && finalBotId && finalTopId === finalBotId) {
+            // If we have 2 distinct page IDs, force them.
+            if (pageIds.length >= 2) {
+                finalTopId = pageIds[0];
+                finalBotId = pageIds[1];
+            } else {
+                // Only 1 ID exists actually. It shouldn't be bottom.
+                finalBotId = null;
+            }
+        }
+
+        // 3. Register Labels
+        if (finalTopId) {
             extractedLabels.push({
-                id: ids[1],
+                id: finalTopId,
+                buffer: topBuffer,
+                position: "top",
+            });
+            console.log(`   -> Registered Top: ${finalTopId}`);
+        }
+
+        if (finalBotId) {
+            extractedLabels.push({
+                id: finalBotId,
                 buffer: botBuffer,
                 position: "bottom",
             });
-            console.log(`Found Bulk Label ID (Bottom): ${ids[1]}`);
+            console.log(`   -> Registered Bottom: ${finalBotId}`);
         }
     }
 
@@ -392,9 +488,41 @@ async function extractBulkSlips(buffer, originalFilename) {
     return extractedSlips;
 }
 
+/**
+ * Scans a PDF buffer for all Order IDs present in the text.
+ * Useful for matching generic filenames to specific orders.
+ * @param {Buffer} buffer
+ * @returns {Promise<string[]>} Array of found Order IDs
+ */
+async function getIdsFromPdf(buffer) {
+    try {
+        const data = await pdfParse(buffer);
+        const text = data.text;
+        // Match all Order IDs
+        const matches = [...text.matchAll(/Order\s*(?:#|ID)[:\s]*(\d+)/gi)].map(
+            (m) => m[1],
+        );
+        return matches;
+    } catch (error) {
+        console.error("Error scanning PDF for IDs:", error);
+        return [];
+    }
+}
+
+async function isSlip(buffer) {
+    try {
+        const data = await pdfParse(buffer);
+        return data.text.includes("rubyvibeco.etsy.com");
+    } catch (e) {
+        return false;
+    }
+}
+
 module.exports = {
     processLabels,
     extractLabelData,
     extractBulkLabels,
     extractBulkSlips,
+    getIdsFromPdf,
+    isSlip,
 };
