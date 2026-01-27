@@ -109,8 +109,25 @@ async function extractLabelData(buffer) {
  */
 async function processLabels(label1Buffer, label2Buffer, options = {}) {
     // Determine config
-    const isBulk = options.isBulk || false;
-    const position = options.position || "top"; // Default to top/standard behavior
+    let isBulk = options.isBulk || false;
+    let position = options.position || "top"; // Default to top/standard behavior
+
+    // Auto-detect if Label 1 contains an Order ID (implies it needs Bulk-style cropping)
+    // Only applies if not already in bulk mode
+    if (!isBulk) {
+        try {
+            const meta = await extractLabelData(label1Buffer);
+            if (meta && meta.id) {
+                console.log(
+                    `Detected Order ID ${meta.id} in matching label. using Bulk Crop config (Top).`,
+                );
+                isBulk = true;
+                position = "top";
+            }
+        } catch (e) {
+            console.warn("Error checking label content:", e);
+        }
+    }
 
     // Create a new PDF document
     const mergedPdf = await PDFDocument.create();
