@@ -268,6 +268,7 @@
                             <th>Status</th>
                             <th>Tracking Number</th>
                             <th>Created Time</th>
+                            <th class="no-copy">Download Date</th>
                         </tr>
                     </thead>
                     <tbody id="autoTableBody"></tbody>
@@ -495,6 +496,7 @@
                             <th>Status</th>
                             <th>Tracking Number</th>
                             <th>Created Time</th>
+                            <th class="no-copy">Download Date</th>
                         </tr>
                     </thead>
                     <tbody id="manualTableBody"></tbody>
@@ -553,6 +555,7 @@
                             <th>Status</th>
                             <th>Tracking Number</th>
                             <th>Created Time</th>
+                            <th class="no-copy">Download Date</th>
                         </tr>
                     </thead>
                     <tbody id="bulkTableBody"></tbody>
@@ -878,8 +881,10 @@
                     checkboxes.forEach((cb) => {
                         const row = cb.closest("tr");
                         // Skip first cell (checkbox)
+                        // Filter out cells with 'no-copy' class
                         const rowText = Array.from(row.cells)
                             .slice(1)
+                            .filter(cell => !cell.classList.contains('no-copy'))
                             .map((c) => c.textContent)
                             .join("\t");
                         rows.push(rowText);
@@ -965,10 +970,14 @@
                 document.getElementById("bulkSelectAllCheck").checked = false;
 
                 const formData = new FormData();
+                const fileDates = {};
+
                 filesToProcess.forEach((file) => {
                     formData.append("files", file);
+                    fileDates[file.name] = file.lastModified;
                 });
                 formData.append("isBulk", isBulk);
+                formData.append("fileDates", JSON.stringify(fileDates));
 
                 try {
                     const response = await fetch("/merge", {
@@ -1041,6 +1050,7 @@
                                     allRowsCopy.push(
                                         Array.from(tr.cells)
                                             .slice(1)
+                                            .filter(cell => !cell.classList.contains('no-copy'))
                                             .map((c) => c.textContent)
                                             .join("\t"),
                                     );
@@ -1156,7 +1166,7 @@
 
                 results.forEach((result, index) => {
                     const rowData = addTableRow(
-                        result.metadata,
+                        result, // Pass the full result object
                         index,
                         tbody,
                         type,
@@ -1185,9 +1195,10 @@
                 window.URL.revokeObjectURL(url);
             }
 
-            function addTableRow(meta, index, tbody, type) {
+            function addTableRow(result, index, tbody, type) {
+                const meta = result.metadata || {};
                 const date = meta.date || "-";
-                const orderId = meta.orderId || "-";
+                const orderId = meta.orderId || meta.id || "-";
                 const packingList = "-";
                 const pickingList = "-";
                 const orderFrom =
@@ -1200,6 +1211,15 @@
                 const status = "Awaiting collection";
                 const tracking = meta.tracking || "-";
                 const createdTime = date;
+                
+                // Format file timestamp
+                let downloadDate = "-";
+                if (result.fileDate) {
+                    const fd = new Date(result.fileDate);
+                    if (!isNaN(fd.getTime())) {
+                       downloadDate = fd.toLocaleString();
+                    }
+                }
 
                 const rowValues = [
                     date,
@@ -1211,6 +1231,7 @@
                     status,
                     tracking,
                     createdTime,
+                    downloadDate
                 ];
 
                 const tr = document.createElement("tr");
@@ -1232,9 +1253,14 @@
                     }
                 });
 
-                rowValues.forEach((val) => {
+                // Add data cells
+                rowValues.forEach((val, i) => {
                     const td = document.createElement("td");
                     td.textContent = val;
+                    // Apply no-copy class to the last column (Download Date)
+                    if (i === rowValues.length - 1) {
+                        td.classList.add("no-copy");
+                    }
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);

@@ -128,10 +128,17 @@ async function processFilePairs(fileObjects) {
                     slip.buffer,
                 );
 
+                // Determine the max file timestamp between the two source files
+                const maxFileDate = Math.max(
+                    slip.lastModified || 0,
+                    matchingLabel.lastModified || 0
+                );
+
                 results.push({
                     filename: output.filename,
                     pdfBase64: Buffer.from(output.pdfBytes).toString("base64"),
                     metadata: output.metadata,
+                    fileDate: maxFileDate, // Pass back for secondary sorting/display
                 });
             } else {
                 console.log(`No match for Order ID ${orderId}`);
@@ -176,13 +183,38 @@ app.get("/scan-default", async (req, res) => {
         for (const file of pdfFiles) {
             const filePath = path.join(inputDir, file);
             const buffer = await fsPromises.readFile(filePath);
+            const stats = await fsPromises.stat(filePath);
+            
             fileObjects.push({
                 originalName: file,
                 buffer: buffer,
+                lastModified: stats.mtimeMs // Use server file modification time
             });
         }
 
         const { results, errors } = await processFilePairs(fileObjects);
+
+        // --- SORTING LOGIC --- (Duplicate of /merge logic to ensure consistency)
+        results.sort((a, b) => {
+             // 1. Parse Metadata Date
+             const parseDate = (dateStr) => {
+                if (!dateStr || dateStr === "-") return 0;
+                const d = new Date(dateStr);
+                return isNaN(d.getTime()) ? 0 : d.getTime();
+            };
+
+            const dateA = parseDate(a.metadata.date);
+            const dateB = parseDate(b.metadata.date);
+
+            if (dateA !== dateB) {
+                return dateB - dateA; 
+            }
+
+            // 2. Secondary Sort: File Download Date
+            const timeA = a.fileDate || 0;
+            const timeB = b.fileDate || 0;
+            return timeB - timeA; 
+        });
 
         res.json({
             success: true,
@@ -204,11 +236,13 @@ app.post("/merge", upload.any(), async (req, res) => {
         }
 
         const isBulk = req.body.isBulk === "true";
+        const fileDates = req.body.fileDates ? JSON.parse(req.body.fileDates) : {};
 
         // Map multer files to our format
         const files = req.files.map((f) => ({
             originalName: f.originalname,
             buffer: f.buffer,
+            lastModified: fileDates[f.originalname] || 0
         }));
 
         let results = [];
@@ -291,12 +325,18 @@ app.post("/merge", upload.any(), async (req, res) => {
                                 position: matchingLabel.position || 'top' 
                             }
                         );
+                        
+                        // Use the Slip File date as the "File Date" since bulk extraction separates them
+                        // Ideally we'd map back to the original PDF date
+                        const fileDate = slipFile.lastModified || labelFile.lastModified || 0;
+
                         results.push({
                             filename: output.filename,
                             pdfBase64: Buffer.from(output.pdfBytes).toString(
                                 "base64",
                             ),
                             metadata: output.metadata,
+                            fileDate: fileDate 
                         });
                     } catch (e) {
                         errors.push(
@@ -313,6 +353,29 @@ app.post("/merge", upload.any(), async (req, res) => {
             results = outcome.results;
             errors = outcome.errors;
         }
+
+        // --- SORTING LOGIC ---
+        // Sort by "Date Ordered" (Metadata) THEN by "Download Date" (File Timestamp)
+        results.sort((a, b) => {
+            // 1. Parse Metadata Date (MM/DD/YYYY)
+            const parseDate = (dateStr) => {
+                if (!dateStr || dateStr === "-") return 0;
+                const d = new Date(dateStr);
+                return isNaN(d.getTime()) ? 0 : d.getTime();
+            };
+
+            const dateA = parseDate(a.metadata.date);
+            const dateB = parseDate(b.metadata.date);
+
+            if (dateA !== dateB) {
+                return dateB - dateA; // Descending (Latest first)
+            }
+
+            // 2. Secondary Sort: File Download Date
+            const timeA = a.fileDate || 0;
+            const timeB = b.fileDate || 0;
+            return timeB - timeA; // Descending
+        });
 
         if (results.length === 0 && errors.length > 0) {
             return res
