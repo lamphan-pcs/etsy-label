@@ -241,6 +241,13 @@
                     <button id="autoDownloadCopyBtn" class="download-btn">
                         Download & Copy Selected
                     </button>
+                    <button
+                        id="autoCopyDataOnlyBtn"
+                        class="download-btn"
+                        style="background-color: #2196f3"
+                    >
+                        Copy Table Data
+                    </button>
                 </div>
 
                 <table class="data-table">
@@ -461,6 +468,13 @@
                     <button id="manualDownloadCopyBtn" class="download-btn">
                         Download & Copy Selected
                     </button>
+                    <button
+                        id="manualCopyDataOnlyBtn"
+                        class="download-btn"
+                        style="background-color: #2196f3"
+                    >
+                        Copy Table Data
+                    </button>
                 </div>
 
                 <table class="data-table">
@@ -511,6 +525,13 @@
                 >
                     <button id="bulkDownloadCopyBtn" class="download-btn">
                         Download & Copy Selected
+                    </button>
+                    <button
+                        id="bulkCopyDataOnlyBtn"
+                        class="download-btn"
+                        style="background-color: #2196f3"
+                    >
+                        Copy Table Data
                     </button>
                 </div>
 
@@ -837,6 +858,9 @@
                 const downloadBtn = document.getElementById(
                     `${prefix}DownloadCopyBtn`,
                 );
+                const copyDataBtn = document.getElementById(
+                    `${prefix}CopyDataOnlyBtn`,
+                );
                 const tbody = document.getElementById(`${prefix}TableBody`);
 
                 if (!selectAll || !downloadBtn) return;
@@ -847,6 +871,24 @@
                     const checkboxes = tbody.querySelectorAll(".row-checkbox");
                     checkboxes.forEach((cb) => (cb.checked = isChecked));
                 });
+
+                // Helper to copy rows
+                const handleCopy = (checkboxes) => {
+                    const rows = [];
+                    checkboxes.forEach((cb) => {
+                        const row = cb.closest("tr");
+                        // Skip first cell (checkbox)
+                        const rowText = Array.from(row.cells)
+                            .slice(1)
+                            .map((c) => c.textContent)
+                            .join("\t");
+                        rows.push(rowText);
+                    });
+
+                    if (rows.length > 0) {
+                        copyToClipboard(rows.join("\n"));
+                    }
+                };
 
                 downloadBtn.addEventListener("click", () => {
                     const checkboxes = tbody.querySelectorAll(
@@ -869,21 +911,22 @@
                     });
 
                     // 2. Copy
-                    const rows = [];
-                    checkboxes.forEach((cb) => {
-                        const row = cb.closest("tr");
-                        // Skip first cell (checkbox)
-                        const rowText = Array.from(row.cells)
-                            .slice(1)
-                            .map((c) => c.textContent)
-                            .join("\t");
-                        rows.push(rowText);
-                    });
-
-                    if (rows.length > 0) {
-                        copyToClipboard(rows.join("\n"));
-                    }
+                    handleCopy(checkboxes);
                 });
+
+                // New Copy Data Only Button
+                if (copyDataBtn) {
+                    copyDataBtn.addEventListener("click", () => {
+                        const checkboxes = tbody.querySelectorAll(
+                            ".row-checkbox:checked",
+                        );
+                        if (checkboxes.length === 0) {
+                            alert("Please select items to copy.");
+                            return;
+                        }
+                        handleCopy(checkboxes);
+                    });
+                }
             }
 
             async function processFiles() {
