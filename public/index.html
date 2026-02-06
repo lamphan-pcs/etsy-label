@@ -259,15 +259,16 @@
                                     id="autoSelectAllCheck"
                                 />
                             </th>
-                            <th>Date Ordered</th>
+                            <th>Label Created</th>
                             <th>Order ID</th>
-                            <th>Packing List</th>
-                            <th>Picking List</th>
-                            <th>Order From</th>
-                            <th>From Whom</th>
+                            <th>Customer Name</th>
+                            <th>Mail/ Account</th>
+                            <th>Shipping Label</th>
+                            <th>Order from</th>
+                            <th>Platform</th>
+                            <th>Tracking number</th>
                             <th>Status</th>
-                            <th>Tracking Number</th>
-                            <th>Created Time</th>
+                            <th>Date Ordered</th>
                             <th class="no-copy">Download Date</th>
                         </tr>
                     </thead>
@@ -501,15 +502,16 @@
                                     id="manualSelectAllCheck"
                                 />
                             </th>
-                            <th>Date Ordered</th>
+                            <th>Label Created</th>
                             <th>Order ID</th>
-                            <th>Packing List</th>
-                            <th>Picking List</th>
-                            <th>Order From</th>
-                            <th>From Whom</th>
+                            <th>Customer Name</th>
+                            <th>Mail/ Account</th>
+                            <th>Shipping Label</th>
+                            <th>Order from</th>
+                            <th>Platform</th>
+                            <th>Tracking number</th>
                             <th>Status</th>
-                            <th>Tracking Number</th>
-                            <th>Created Time</th>
+                            <th>Date Ordered</th>
                             <th class="no-copy">Download Date</th>
                         </tr>
                     </thead>
@@ -560,15 +562,16 @@
                                     id="bulkSelectAllCheck"
                                 />
                             </th>
-                            <th>Date Ordered</th>
+                            <th>Label Created</th>
                             <th>Order ID</th>
-                            <th>Packing List</th>
-                            <th>Picking List</th>
-                            <th>Order From</th>
-                            <th>From Whom</th>
+                            <th>Customer Name</th>
+                            <th>Mail/ Account</th>
+                            <th>Shipping Label</th>
+                            <th>Order from</th>
+                            <th>Platform</th>
+                            <th>Tracking number</th>
                             <th>Status</th>
-                            <th>Tracking Number</th>
-                            <th>Created Time</th>
+                            <th>Date Ordered</th>
                             <th class="no-copy">Download Date</th>
                         </tr>
                     </thead>
@@ -1243,38 +1246,43 @@
                 const meta = result.metadata || {};
                 const date = meta.date || "-";
                 const orderId = meta.orderId || meta.id || "-";
-                const packingList = "-";
-                const pickingList = "-";
+                const customerName = meta.buyerName || "-";
+                const mailAccount = meta.buyerUsername || "-";
+                const shippingLabel = "";
                 const orderFrom =
                     meta.type === "etsy"
                         ? "Etsy"
                         : meta.type === "tiktok"
                           ? "TikTok"
                           : "-";
-                const fromWhom = "Real Order";
+                const platform = "Real Order";
                 const status = "Awaiting collection";
                 const tracking = meta.tracking || "-";
-                const createdTime = date;
 
-                // Format file timestamp
-                let downloadDate = "-";
+                // Format file timestamp (Label Created)
+                let labelCreated = "-";
                 if (result.fileDate) {
                     const fd = new Date(result.fileDate);
                     if (!isNaN(fd.getTime())) {
-                        downloadDate = fd.toLocaleString();
+                        const mm = String(fd.getMonth() + 1).padStart(2, "0");
+                        const dd = String(fd.getDate()).padStart(2, "0");
+                        const yyyy = fd.getFullYear();
+                        labelCreated = `${mm}/${dd}/${yyyy}`;
                     }
                 }
+                const downloadDate = labelCreated;
 
                 const rowValues = [
-                    date,
+                    labelCreated,
                     orderId,
-                    packingList,
-                    pickingList,
+                    customerName,
+                    mailAccount,
+                    shippingLabel,
                     orderFrom,
-                    fromWhom,
-                    status,
+                    platform,
                     tracking,
-                    createdTime,
+                    status,
+                    date,
                     downloadDate,
                 ];
 

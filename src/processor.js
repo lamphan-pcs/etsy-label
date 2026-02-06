@@ -81,11 +81,24 @@ async function extractLabelData(buffer) {
             const trackingMatch = text.match(/Tracking\s*\n\s*(\d+)/i);
             const tracking = trackingMatch ? trackingMatch[1].trim() : "-";
 
+            // Extract Buyer Info: "Buyer\nChelsy Rosa\n(chelsyns)"
+            // Regex explanations:
+            // Buyer[:\s]+  : Matches "Buyer" followed by colon/whitespace (newlines included)
+            // (.*?)        : Non-greedy capture of Name (matches until the next part)
+            // \s*\(        : Optional whitespace followed by opening paren
+            // ([^)]+)      : Capture Username contents
+            // \)           : Closing paren
+            const buyerMatch = text.match(/Buyer[:\s]+(.*?)\s*\(([^)]+)\)/i);
+            const buyerName = buyerMatch ? buyerMatch[1].trim() : "-";
+            const buyerUsername = buyerMatch ? buyerMatch[2].trim() : "-";
+
             return {
                 id: orderId,
                 type: "etsy",
                 date: formattedDate,
                 tracking: tracking,
+                buyerName: buyerName,
+                buyerUsername: buyerUsername,
             };
         }
 
@@ -286,6 +299,8 @@ async function processLabels(label1Buffer, label2Buffer, options = {}) {
             date: orderInfo.date,
             tracking: orderInfo.tracking,
             type: orderInfo.type,
+            buyerName: orderInfo.buyerName || "-",
+            buyerUsername: orderInfo.buyerUsername || "-",
         };
     }
 
