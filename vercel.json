@@ -1,3 +1,8 @@
 {
-    "rewrites": [{ "source": "/merge", "destination": "/api/index.js" }]
+    "rewrites": [
+        { "source": "/merge", "destination": "/api/index.js" },
+        { "source": "/analyze", "destination": "/api/index.js" },
+        { "source": "/scan-default", "destination": "/api/index.js" },
+        { "source": "/set-input-dir", "destination": "/api/index.js" }
+    ]
 }

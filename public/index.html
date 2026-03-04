@@ -1011,28 +1011,124 @@
                 bulkScanResults = [];
                 document.getElementById("bulkSelectAllCheck").checked = false;
 
-                const formData = new FormData();
-                const fileDates = {};
-
-                filesToProcess.forEach((file) => {
-                    formData.append("files", file);
-                    fileDates[file.name] = file.lastModified;
-                });
-                formData.append("isBulk", isBulk);
-                formData.append("fileDates", JSON.stringify(fileDates));
+                // -------------------------------------------------------
+                // REQUEST STRATEGY
+                // Vercel serverless hard limit: 4.5 MB request body.
+                // Bulk mode: two files → single request (unchanged).
+                // Non-bulk: analyse each file individually (/analyze),
+                //   match pairs client-side, then POST one pair at a time
+                //   to /merge so every request stays well under the limit.
+                // -------------------------------------------------------
 
                 try {
-                    const response = await fetch("/merge", {
-                        method: "POST",
-                        body: formData,
-                    });
+                    let allResults = [];
+                    let allErrors  = [];
 
-                    if (response.ok) {
+                    if (isBulk) {
+                        // ── BULK MODE: unchanged single request ──────────
+                        const formData  = new FormData();
+                        const fileDates = {};
+                        filesToProcess.forEach((file) => {
+                            formData.append("files", file);
+                            fileDates[file.name] = file.lastModified;
+                        });
+                        formData.append("isBulk", "true");
+                        formData.append("fileDates", JSON.stringify(fileDates));
+
+                        const response = await fetch("/merge", {
+                            method: "POST",
+                            body: formData,
+                        });
+                        if (!response.ok) {
+                            throw new Error(await response.text());
+                        }
                         const data = await response.json();
+                        allResults = data.results || [];
+                        allErrors  = data.errors  || [];
 
-                        if (data.results && data.results.length > 0) {
-                            const modeStr = isBulk ? "Bulk" : "Manual";
-                            statusDiv.textContent = `Success! Processed ${data.results.length} pairs (${modeStr}).`;
+                    } else {
+                        // ── NON-BULK MODE: per-file analyse → per-pair merge ──
+
+                        // Step 1: Identify each file (one small request each)
+                        statusDiv.textContent = `Analysing ${filesToProcess.length} files…`;
+                        const analyzed = [];
+                        for (const file of filesToProcess) {
+                            const fd = new FormData();
+                            fd.append("file", file);
+                            const resp = await fetch("/analyze", { method: "POST", body: fd });
+                            if (!resp.ok) {
+                                allErrors.push(`Failed to analyse ${file.name}`);
+                                continue;
+                            }
+                            const info = await resp.json();
+                            analyzed.push({ file, ...info });
+                        }
+
+                        const slips  = analyzed.filter((f) => f.type === "slip");
+                        const labels = analyzed.filter((f) => f.type === "label");
+
+                        // Step 2: Match each slip to a label
+                        const usedLabels = new Set();
+                        const pairs      = [];
+                        for (const slip of slips) {
+                            const slipId = slip.orderIds && slip.orderIds[0];
+                            if (!slipId) {
+                                allErrors.push(`No Order ID found in: ${slip.filename}`);
+                                continue;
+                            }
+                            // Content match first
+                            let matched = labels.find(
+                                (l) => !usedLabels.has(l.filename) &&
+                                        l.orderIds && l.orderIds.includes(slipId)
+                            );
+                            // Filename fallback
+                            if (!matched) {
+                                matched = labels.find(
+                                    (l) => !usedLabels.has(l.filename) &&
+                                            l.filename.includes(slipId)
+                                );
+                            }
+                            if (matched) {
+                                usedLabels.add(matched.filename);
+                                pairs.push({ slip, label: matched });
+                            } else {
+                                allErrors.push(`No matching label for Order ID ${slipId} (${slip.filename})`);
+                            }
+                        }
+
+                        // Step 3: Process one pair per request
+                        for (let i = 0; i < pairs.length; i++) {
+                            const { slip, label } = pairs[i];
+                            statusDiv.textContent = `Processing pair ${i + 1} of ${pairs.length}…`;
+                            const fd = new FormData();
+                            fd.append("files", label.file);
+                            fd.append("files", slip.file);
+                            const fileDates = {};
+                            fileDates[label.file.name] = label.file.lastModified;
+                            fileDates[slip.file.name]  = slip.file.lastModified;
+                            fd.append("isBulk", "false");
+                            fd.append("fileDates", JSON.stringify(fileDates));
+
+                            try {
+                                const resp = await fetch("/merge", { method: "POST", body: fd });
+                                if (!resp.ok) {
+                                    allErrors.push(`Error on ${slip.filename}: ${await resp.text()}`);
+                                    continue;
+                                }
+                                const pairData = await resp.json();
+                                if (pairData.results) allResults.push(...pairData.results);
+                                if (pairData.errors)  allErrors.push(...pairData.errors);
+                            } catch (pairErr) {
+                                allErrors.push(`Network error on ${slip.filename}: ${pairErr.message}`);
+                            }
+                        }
+                    }
+
+                    // ── Render accumulated results (same logic as before) ──
+                    if (allResults.length > 0) {
+                        const data = { results: allResults, errors: allErrors };
+                        const modeStr = isBulk ? "Bulk" : "Manual";
+                        statusDiv.textContent = `Success! Processed ${data.results.length} pairs (${modeStr}).`;
                             statusDiv.style.color = "green";
 
                             if (isBulk) {
@@ -1124,45 +1220,15 @@
                                 );
                             }
                             checkReady();
-                        } else {
-                            statusDiv.textContent =
-                                "No valid pairs found to process.";
-                            if (data.errors && data.errors.length > 0) {
-                                alert("Errors:\n" + data.errors.join("\n"));
-                            } else {
-                                alert(
-                                    "No pairs found. Ensure matching file names (Order ID in filename).",
-                                );
-                            }
-
-                            // Reset on Error too
-                            if (isBulk) {
-                                selectedBulkFiles = [];
-                                bulkFilesInput.value = "";
-                                updateBulkPreviews();
-                                bulkDropZone.style.removeProperty(
-                                    "border-color",
-                                );
-                                bulkDropZone.style.backgroundColor = "#f3e5f5";
-                                bulkDropZone.style.borderColor = "#ce93d8";
-                            } else {
-                                selectedFiles = [];
-                                fileInput.value = "";
-                                updatePreviews();
-                                dropZone.style.removeProperty("border-color");
-                                dropZone.style.removeProperty(
-                                    "background-color",
-                                );
-                            }
-                            checkReady();
-                        }
                     } else {
-                        const errorText = await response.text();
-                        statusDiv.textContent = "Error: " + errorText;
-                        statusDiv.style.color = "red";
-                        alert("Error:\n" + errorText);
-
-                        // Reset on Server Error
+                        // No results
+                        statusDiv.textContent = "No valid pairs found to process.";
+                        if (allErrors.length > 0) {
+                            alert("Errors:\n" + allErrors.join("\n"));
+                        } else {
+                            alert("No pairs found. Ensure matching file names (Order ID in filename).");
+                        }
+                        // Reset
                         if (isBulk) {
                             selectedBulkFiles = [];
                             bulkFilesInput.value = "";
@@ -1181,10 +1247,10 @@
                     }
                 } catch (err) {
                     console.error(err);
-                    statusDiv.textContent = "Network Error";
+                    statusDiv.textContent = "Error: " + err.message;
                     statusDiv.style.color = "red";
-
-                    // Reset on Network Error
+                    alert("Error:\n" + err.message);
+                    // Reset
                     if (typeof isBulk !== "undefined" && isBulk) {
                         selectedBulkFiles = [];
                         bulkFilesInput.value = "";

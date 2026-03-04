@@ -318,16 +318,19 @@ app.get("/pick-folder", (req, res) => {
     // Encode as Base64 to safely pass complex scripts to PowerShell
     // PowerShell expects UTF-16LE encoding for Base64 strings
     const encodedScript = Buffer.from(psScript, "utf16le").toString("base64");
-    
+
     // Run powershell with -EncodedCommand
     const command = `powershell -NoProfile -ExecutionPolicy Bypass -sta -EncodedCommand ${encodedScript}`;
 
     exec(command, (error, stdout, stderr) => {
         if (error) {
             console.error("Folder picker error:", error);
-            console.error("Stderr:", stderr); 
+            console.error("Stderr:", stderr);
             // Return the specific error to help debugging
-            return res.json({ success: false, error: "Could not open dialog: " + stderr });
+            return res.json({
+                success: false,
+                error: "Could not open dialog: " + stderr,
+            });
         }
 
         const selectedPath = stdout.trim();
@@ -337,6 +340,36 @@ app.get("/pick-folder", (req, res) => {
             res.json({ success: false, cancelled: true });
         }
     });
+});
+
+// Lightweight single-file analysis endpoint (Vercel-safe: one small file per request)
+// Returns the file's type ('label' or 'slip') and order IDs extracted from it.
+// The frontend calls this once per file, matches pairs client-side, then calls /merge per pair.
+app.post("/analyze", upload.single("file"), async (req, res) => {
+    try {
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({ error: "No file provided" });
+        }
+
+        const detectedSlip = await isSlip(file.buffer);
+        const type = detectedSlip ? "slip" : "label";
+        let orderIds = [];
+
+        if (type === "slip") {
+            const meta = await extractLabelData(file.buffer);
+            if (meta && meta.id) {
+                orderIds = [meta.id];
+            }
+        } else {
+            orderIds = await getIdsFromPdf(file.buffer);
+        }
+
+        res.json({ filename: file.originalname, type, orderIds });
+    } catch (err) {
+        console.error("Analyze error:", err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // API Endpoint to handle file upload and processing
