@@ -4,6 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Etsy Label Merger</title>
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <style>
             body {
                 font-family: sans-serif;
@@ -1022,11 +1023,11 @@
 
                 try {
                     let allResults = [];
-                    let allErrors  = [];
+                    let allErrors = [];
 
                     if (isBulk) {
                         // ── BULK MODE: unchanged single request ──────────
-                        const formData  = new FormData();
+                        const formData = new FormData();
                         const fileDates = {};
                         filesToProcess.forEach((file) => {
                             formData.append("files", file);
@@ -1044,8 +1045,7 @@
                         }
                         const data = await response.json();
                         allResults = data.results || [];
-                        allErrors  = data.errors  || [];
-
+                        allErrors = data.errors || [];
                     } else {
                         // ── NON-BULK MODE: per-file analyse → per-pair merge ──
 
@@ -1055,44 +1055,58 @@
                         for (const file of filesToProcess) {
                             const fd = new FormData();
                             fd.append("file", file);
-                            const resp = await fetch("/analyze", { method: "POST", body: fd });
+                            const resp = await fetch("/analyze", {
+                                method: "POST",
+                                body: fd,
+                            });
                             if (!resp.ok) {
-                                allErrors.push(`Failed to analyse ${file.name}`);
+                                allErrors.push(
+                                    `Failed to analyse ${file.name}`,
+                                );
                                 continue;
                             }
                             const info = await resp.json();
                             analyzed.push({ file, ...info });
                         }
 
-                        const slips  = analyzed.filter((f) => f.type === "slip");
-                        const labels = analyzed.filter((f) => f.type === "label");
+                        const slips = analyzed.filter((f) => f.type === "slip");
+                        const labels = analyzed.filter(
+                            (f) => f.type === "label",
+                        );
 
                         // Step 2: Match each slip to a label
                         const usedLabels = new Set();
-                        const pairs      = [];
+                        const pairs = [];
                         for (const slip of slips) {
                             const slipId = slip.orderIds && slip.orderIds[0];
                             if (!slipId) {
-                                allErrors.push(`No Order ID found in: ${slip.filename}`);
+                                allErrors.push(
+                                    `No Order ID found in: ${slip.filename}`,
+                                );
                                 continue;
                             }
                             // Content match first
                             let matched = labels.find(
-                                (l) => !usedLabels.has(l.filename) &&
-                                        l.orderIds && l.orderIds.includes(slipId)
+                                (l) =>
+                                    !usedLabels.has(l.filename) &&
+                                    l.orderIds &&
+                                    l.orderIds.includes(slipId),
                             );
                             // Filename fallback
                             if (!matched) {
                                 matched = labels.find(
-                                    (l) => !usedLabels.has(l.filename) &&
-                                            l.filename.includes(slipId)
+                                    (l) =>
+                                        !usedLabels.has(l.filename) &&
+                                        l.filename.includes(slipId),
                                 );
                             }
                             if (matched) {
                                 usedLabels.add(matched.filename);
                                 pairs.push({ slip, label: matched });
                             } else {
-                                allErrors.push(`No matching label for Order ID ${slipId} (${slip.filename})`);
+                                allErrors.push(
+                                    `No matching label for Order ID ${slipId} (${slip.filename})`,
+                                );
                             }
                         }
 
@@ -1104,22 +1118,32 @@
                             fd.append("files", label.file);
                             fd.append("files", slip.file);
                             const fileDates = {};
-                            fileDates[label.file.name] = label.file.lastModified;
-                            fileDates[slip.file.name]  = slip.file.lastModified;
+                            fileDates[label.file.name] =
+                                label.file.lastModified;
+                            fileDates[slip.file.name] = slip.file.lastModified;
                             fd.append("isBulk", "false");
                             fd.append("fileDates", JSON.stringify(fileDates));
 
                             try {
-                                const resp = await fetch("/merge", { method: "POST", body: fd });
+                                const resp = await fetch("/merge", {
+                                    method: "POST",
+                                    body: fd,
+                                });
                                 if (!resp.ok) {
-                                    allErrors.push(`Error on ${slip.filename}: ${await resp.text()}`);
+                                    allErrors.push(
+                                        `Error on ${slip.filename}: ${await resp.text()}`,
+                                    );
                                     continue;
                                 }
                                 const pairData = await resp.json();
-                                if (pairData.results) allResults.push(...pairData.results);
-                                if (pairData.errors)  allErrors.push(...pairData.errors);
+                                if (pairData.results)
+                                    allResults.push(...pairData.results);
+                                if (pairData.errors)
+                                    allErrors.push(...pairData.errors);
                             } catch (pairErr) {
-                                allErrors.push(`Network error on ${slip.filename}: ${pairErr.message}`);
+                                allErrors.push(
+                                    `Network error on ${slip.filename}: ${pairErr.message}`,
+                                );
                             }
                         }
                     }
@@ -1129,104 +1153,103 @@
                         const data = { results: allResults, errors: allErrors };
                         const modeStr = isBulk ? "Bulk" : "Manual";
                         statusDiv.textContent = `Success! Processed ${data.results.length} pairs (${modeStr}).`;
-                            statusDiv.style.color = "green";
+                        statusDiv.style.color = "green";
 
-                            if (isBulk) {
-                                bulkScanResults = data.results;
-                                renderResults(
-                                    bulkScanResults,
-                                    "bulkResultContainer",
-                                    "bulkTableBody",
-                                    "bulk",
-                                );
+                        if (isBulk) {
+                            bulkScanResults = data.results;
+                            renderResults(
+                                bulkScanResults,
+                                "bulkResultContainer",
+                                "bulkTableBody",
+                                "bulk",
+                            );
 
-                                // Auto-select all for Bulk
-                                document.getElementById(
-                                    "bulkSelectAllCheck",
-                                ).checked = true;
-                                document
-                                    .getElementById("bulkTableBody")
-                                    .querySelectorAll(".row-checkbox")
-                                    .forEach((cb) => (cb.checked = true));
-                            } else {
-                                manualScanResults = data.results;
-                                renderResults(
-                                    manualScanResults,
-                                    "manualResultContainer",
-                                    "manualTableBody",
-                                    "manual",
-                                );
-
-                                // Auto-select all for Drag & Drop
-                                document.getElementById(
-                                    "manualSelectAllCheck",
-                                ).checked = true;
-                                document
-                                    .getElementById("manualTableBody")
-                                    .querySelectorAll(".row-checkbox")
-                                    .forEach((cb) => (cb.checked = true));
-                            }
-
-                            if (data.errors && data.errors.length > 0) {
-                                statusDiv.textContent += ` (${data.errors.length} errors)`;
-                                console.warn(data.errors);
-                            }
-
-                            // AUTO DOWNLOAD REMOVED based on user request
-                            // data.results.forEach((result) => {
-                            //    downloadPdf(result.pdfBase64, result.filename);
-                            // });
-
-                            // Copy all rows
-                            const targetBodyId = isBulk
-                                ? "bulkTableBody"
-                                : "manualTableBody";
-                            const allRowsCopy = [];
+                            // Auto-select all for Bulk
+                            document.getElementById(
+                                "bulkSelectAllCheck",
+                            ).checked = true;
                             document
-                                .querySelectorAll(`#${targetBodyId} tr`)
-                                .forEach((tr) => {
-                                    allRowsCopy.push(
-                                        Array.from(tr.cells)
-                                            .slice(1)
-                                            .filter(
-                                                (cell) =>
-                                                    !cell.classList.contains(
-                                                        "no-copy",
-                                                    ),
-                                            )
-                                            .map((c) => c.textContent)
-                                            .join("\t"),
-                                    );
-                                });
-                            copyToClipboard(allRowsCopy.join("\n"));
+                                .getElementById("bulkTableBody")
+                                .querySelectorAll(".row-checkbox")
+                                .forEach((cb) => (cb.checked = true));
+                        } else {
+                            manualScanResults = data.results;
+                            renderResults(
+                                manualScanResults,
+                                "manualResultContainer",
+                                "manualTableBody",
+                                "manual",
+                            );
 
-                            // Clear files after successful processing
-                            if (isBulk) {
-                                selectedBulkFiles = [];
-                                bulkFilesInput.value = "";
-                                updateBulkPreviews();
-                                bulkDropZone.style.removeProperty(
-                                    "border-color",
+                            // Auto-select all for Drag & Drop
+                            document.getElementById(
+                                "manualSelectAllCheck",
+                            ).checked = true;
+                            document
+                                .getElementById("manualTableBody")
+                                .querySelectorAll(".row-checkbox")
+                                .forEach((cb) => (cb.checked = true));
+                        }
+
+                        if (data.errors && data.errors.length > 0) {
+                            statusDiv.textContent += ` (${data.errors.length} errors)`;
+                            console.warn(data.errors);
+                        }
+
+                        // AUTO DOWNLOAD REMOVED based on user request
+                        // data.results.forEach((result) => {
+                        //    downloadPdf(result.pdfBase64, result.filename);
+                        // });
+
+                        // Copy all rows
+                        const targetBodyId = isBulk
+                            ? "bulkTableBody"
+                            : "manualTableBody";
+                        const allRowsCopy = [];
+                        document
+                            .querySelectorAll(`#${targetBodyId} tr`)
+                            .forEach((tr) => {
+                                allRowsCopy.push(
+                                    Array.from(tr.cells)
+                                        .slice(1)
+                                        .filter(
+                                            (cell) =>
+                                                !cell.classList.contains(
+                                                    "no-copy",
+                                                ),
+                                        )
+                                        .map((c) => c.textContent)
+                                        .join("\t"),
                                 );
-                                bulkDropZone.style.backgroundColor = "#f3e5f5";
-                                bulkDropZone.style.borderColor = "#ce93d8";
-                            } else {
-                                selectedFiles = [];
-                                fileInput.value = "";
-                                updatePreviews();
-                                dropZone.style.removeProperty("border-color");
-                                dropZone.style.removeProperty(
-                                    "background-color",
-                                );
-                            }
-                            checkReady();
+                            });
+                        copyToClipboard(allRowsCopy.join("\n"));
+
+                        // Clear files after successful processing
+                        if (isBulk) {
+                            selectedBulkFiles = [];
+                            bulkFilesInput.value = "";
+                            updateBulkPreviews();
+                            bulkDropZone.style.removeProperty("border-color");
+                            bulkDropZone.style.backgroundColor = "#f3e5f5";
+                            bulkDropZone.style.borderColor = "#ce93d8";
+                        } else {
+                            selectedFiles = [];
+                            fileInput.value = "";
+                            updatePreviews();
+                            dropZone.style.removeProperty("border-color");
+                            dropZone.style.removeProperty("background-color");
+                        }
+                        checkReady();
                     } else {
                         // No results
-                        statusDiv.textContent = "No valid pairs found to process.";
+                        statusDiv.textContent =
+                            "No valid pairs found to process.";
                         if (allErrors.length > 0) {
                             alert("Errors:\n" + allErrors.join("\n"));
                         } else {
-                            alert("No pairs found. Ensure matching file names (Order ID in filename).");
+                            alert(
+                                "No pairs found. Ensure matching file names (Order ID in filename).",
+                            );
                         }
                         // Reset
                         if (isBulk) {
