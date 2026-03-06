@@ -613,6 +613,31 @@
             let manualScanResults = [];
             let bulkScanResults = [];
 
+            // Helper functions for managing download records
+            function saveDownloadRecord(orderId) {
+                const downloadedLabels = JSON.parse(localStorage.getItem("downloadedLabels") || "{}");
+                const now = new Date();
+                const month = String(now.getMonth() + 1).padStart(2, "0");
+                const day = String(now.getDate()).padStart(2, "0");
+                const year = now.getFullYear();
+                const hours = String(now.getHours()).padStart(2, "0");
+                const minutes = String(now.getMinutes()).padStart(2, "0");
+                const seconds = String(now.getSeconds()).padStart(2, "0");
+                const dateTimeStr = `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+                
+                downloadedLabels[orderId] = dateTimeStr;
+                localStorage.setItem("downloadedLabels", JSON.stringify(downloadedLabels));
+            }
+
+            function getDownloadRecord(orderId) {
+                const downloadedLabels = JSON.parse(localStorage.getItem("downloadedLabels") || "{}");
+                return downloadedLabels[orderId] || "-";
+            }
+
+            function isLabelDownloaded(orderId) {
+                return getDownloadRecord(orderId) !== "-";
+            }
+
             // Auto Scan on Load
             document.addEventListener("DOMContentLoaded", () => {
                 scanDefaultFolder();
@@ -769,8 +794,22 @@
                             "auto",
                         );
 
+                        // Auto-select only labels that haven't been downloaded
+                        autoScanResults.forEach((result, index) => {
+                            const meta = result.metadata || {};
+                            const orderId = meta.orderId || meta.id;
+                            if (orderId && !isLabelDownloaded(orderId)) {
+                                const checkbox = document.querySelector(
+                                    `#autoTableBody .row-checkbox[data-index="${index}"]`,
+                                );
+                                if (checkbox) {
+                                    checkbox.checked = true;
+                                }
+                            }
+                        });
+
                         scanInfo.style.display = "block";
-                        scanInfo.innerHTML = `<strong>Auto-Scan Complete:</strong> Found ${data.results.length} pairs in <br><code>${data.scannedDir}</code> <br><span style="font-size:0.8rem">Check boxes to download/copy.</span>`;
+                        scanInfo.innerHTML = `<strong>Auto-Scan Complete:</strong> Found ${data.results.length} pairs in <br><code>${data.scannedDir}</code> <br><span style="font-size:0.8rem">Auto-selected labels not yet downloaded. Check boxes to download/copy.</span>`;
                     } else {
                         statusDiv.textContent = `Scanned ${data.scannedDir || "default folder"}. No PDF pairs found.`;
                         statusDiv.style.color = "#666";
@@ -949,12 +988,24 @@
 
                     const results = getResultsFn();
 
-                    // 1. Download
+                    // 1. Download and record download date
                     checkboxes.forEach((cb) => {
                         const resultIndex = parseInt(cb.dataset.index);
                         if (!isNaN(resultIndex) && results[resultIndex]) {
                             const result = results[resultIndex];
                             downloadPdf(result.pdfBase64, result.filename);
+                            
+                            // Save download record for this label
+                            const meta = result.metadata || {};
+                            const orderId = meta.orderId || meta.id;
+                            if (orderId) {
+                                saveDownloadRecord(orderId);
+                                // Update the download date cell in the table
+                                const dateCell = cb.closest("tr").cells[11]; // Download Date column
+                                if (dateCell) {
+                                    dateCell.textContent = getDownloadRecord(orderId);
+                                }
+                            }
                         }
                     });
 
@@ -1359,7 +1410,13 @@
                         labelCreated = `${mm}/${dd}/${yyyy}`;
                     }
                 }
-                const downloadDate = labelCreated;
+                
+                // Get download date from localStorage or display "-" if not downloaded
+                let downloadDate = "-";
+                const downloadRecord = getDownloadRecord(orderId);
+                if (downloadRecord) {
+                    downloadDate = downloadRecord;
+                }
 
                 const rowValues = [
                     labelCreated,
