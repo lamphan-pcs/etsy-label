@@ -84,6 +84,32 @@ app.post("/set-input-dir", express.json(), async (req, res) => {
     }
 });
 
+// Helper function to check if output file exists
+// Checks for both with and without .pdf extension since downloaded files may or may not have it
+async function checkFileExists(filename) {
+    try {
+        if (!inputDir) return false;
+        
+        // Check for exact filename (without extension)
+        const filePath = path.join(inputDir, filename);
+        if (fs.existsSync(filePath)) {
+            return true;
+        }
+        
+        // Check for filename with .pdf extension
+        // (Windows sometimes adds this automatically when downloading)
+        const filePathWithExt = path.join(inputDir, `${filename}.pdf`);
+        if (fs.existsSync(filePathWithExt)) {
+            return true;
+        }
+        
+        return false;
+    } catch (err) {
+        console.warn(`Failed to check if file exists: ${filename}`, err);
+        return false;
+    }
+}
+
 // Helper logic for processing array of file objects
 async function processFilePairs(fileObjects) {
     const shippingLabels = [];
@@ -204,11 +230,15 @@ async function processFilePairs(fileObjects) {
                     matchingLabel.lastModified || 0,
                 );
 
+                // Check if output file already exists
+                const fileExists = await checkFileExists(output.filename);
+
                 results.push({
                     filename: output.filename,
                     pdfBase64: Buffer.from(output.pdfBytes).toString("base64"),
                     metadata: output.metadata,
                     fileDate: maxFileDate, // Pass back for secondary sorting/display
+                    downloaded: fileExists,
                 });
             } else {
                 console.log(`No match for Order ID ${orderId}`);
@@ -479,6 +509,9 @@ app.post("/merge", upload.any(), async (req, res) => {
                             labelFile.lastModified ||
                             0;
 
+                        // Check if output file already exists
+                        const fileExists = await checkFileExists(output.filename);
+
                         results.push({
                             filename: output.filename,
                             pdfBase64: Buffer.from(output.pdfBytes).toString(
@@ -486,6 +519,7 @@ app.post("/merge", upload.any(), async (req, res) => {
                             ),
                             metadata: output.metadata,
                             fileDate: fileDate,
+                            downloaded: fileExists,
                         });
                     } catch (e) {
                         errors.push(

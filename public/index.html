@@ -270,7 +270,8 @@
                             <th>Tracking number</th>
                             <th>Status</th>
                             <th>Date Ordered</th>
-                            <th class="no-copy">Download Date</th>
+                            <th class="no-copy">Label/Order Download Date</th>
+                            <th class="no-copy">Downloaded</th>
                         </tr>
                     </thead>
                     <tbody id="autoTableBody"></tbody>
@@ -513,7 +514,8 @@
                             <th>Tracking number</th>
                             <th>Status</th>
                             <th>Date Ordered</th>
-                            <th class="no-copy">Download Date</th>
+                            <th class="no-copy">Label/Order Download Date</th>
+                            <th class="no-copy">Downloaded</th>
                         </tr>
                     </thead>
                     <tbody id="manualTableBody"></tbody>
@@ -573,7 +575,8 @@
                             <th>Tracking number</th>
                             <th>Status</th>
                             <th>Date Ordered</th>
-                            <th class="no-copy">Download Date</th>
+                            <th class="no-copy">Label/Order Download Date</th>
+                            <th class="no-copy">Downloaded</th>
                         </tr>
                     </thead>
                     <tbody id="bulkTableBody"></tbody>
@@ -615,7 +618,9 @@
 
             // Helper functions for managing download records
             function saveDownloadRecord(orderId) {
-                const downloadedLabels = JSON.parse(localStorage.getItem("downloadedLabels") || "{}");
+                const downloadedLabels = JSON.parse(
+                    localStorage.getItem("downloadedLabels") || "{}",
+                );
                 const now = new Date();
                 const month = String(now.getMonth() + 1).padStart(2, "0");
                 const day = String(now.getDate()).padStart(2, "0");
@@ -624,13 +629,18 @@
                 const minutes = String(now.getMinutes()).padStart(2, "0");
                 const seconds = String(now.getSeconds()).padStart(2, "0");
                 const dateTimeStr = `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
-                
+
                 downloadedLabels[orderId] = dateTimeStr;
-                localStorage.setItem("downloadedLabels", JSON.stringify(downloadedLabels));
+                localStorage.setItem(
+                    "downloadedLabels",
+                    JSON.stringify(downloadedLabels),
+                );
             }
 
             function getDownloadRecord(orderId) {
-                const downloadedLabels = JSON.parse(localStorage.getItem("downloadedLabels") || "{}");
+                const downloadedLabels = JSON.parse(
+                    localStorage.getItem("downloadedLabels") || "{}",
+                );
                 return downloadedLabels[orderId] || "-";
             }
 
@@ -794,11 +804,9 @@
                             "auto",
                         );
 
-                        // Auto-select only labels that haven't been downloaded
+                        // Auto-select only labels that haven't been downloaded yet
                         autoScanResults.forEach((result, index) => {
-                            const meta = result.metadata || {};
-                            const orderId = meta.orderId || meta.id;
-                            if (orderId && !isLabelDownloaded(orderId)) {
+                            if (result.downloaded === false) {
                                 const checkbox = document.querySelector(
                                     `#autoTableBody .row-checkbox[data-index="${index}"]`,
                                 );
@@ -994,7 +1002,7 @@
                         if (!isNaN(resultIndex) && results[resultIndex]) {
                             const result = results[resultIndex];
                             downloadPdf(result.pdfBase64, result.filename);
-                            
+
                             // Save download record for this label
                             const meta = result.metadata || {};
                             const orderId = meta.orderId || meta.id;
@@ -1003,7 +1011,8 @@
                                 // Update the download date cell in the table
                                 const dateCell = cb.closest("tr").cells[11]; // Download Date column
                                 if (dateCell) {
-                                    dateCell.textContent = getDownloadRecord(orderId);
+                                    dateCell.textContent =
+                                        getDownloadRecord(orderId);
                                 }
                             }
                         }
@@ -1410,13 +1419,24 @@
                         labelCreated = `${mm}/${dd}/${yyyy}`;
                     }
                 }
-                
-                // Get download date from localStorage or display "-" if not downloaded
-                let downloadDate = "-";
-                const downloadRecord = getDownloadRecord(orderId);
-                if (downloadRecord) {
-                    downloadDate = downloadRecord;
+
+                // Format file date as datetime for "Label/Order Download Date"
+                let labelDownloadDateTime = "-";
+                if (result.fileDate) {
+                    const fd = new Date(result.fileDate);
+                    if (!isNaN(fd.getTime())) {
+                        const mm = String(fd.getMonth() + 1).padStart(2, "0");
+                        const dd = String(fd.getDate()).padStart(2, "0");
+                        const yyyy = fd.getFullYear();
+                        const hours = String(fd.getHours()).padStart(2, "0");
+                        const minutes = String(fd.getMinutes()).padStart(2, "0");
+                        const seconds = String(fd.getSeconds()).padStart(2, "0");
+                        labelDownloadDateTime = `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds}`;
+                    }
                 }
+                
+                // Check if already downloaded
+                const isDownloaded = result.downloaded ? "Yes" : "No";
 
                 const rowValues = [
                     labelCreated,
@@ -1429,7 +1449,8 @@
                     tracking,
                     status,
                     date,
-                    downloadDate,
+                    labelDownloadDateTime,
+                    isDownloaded,
                 ];
 
                 const tr = document.createElement("tr");
@@ -1455,8 +1476,8 @@
                 rowValues.forEach((val, i) => {
                     const td = document.createElement("td");
                     td.textContent = val;
-                    // Apply no-copy class to the last column (Download Date)
-                    if (i === rowValues.length - 1) {
+                    // Apply no-copy class to the last two columns (Label/Order Download Date and Downloaded)
+                    if (i === rowValues.length - 1 || i === rowValues.length - 2) {
                         td.classList.add("no-copy");
                     }
                     tr.appendChild(td);
