@@ -81,16 +81,40 @@ async function extractLabelData(buffer) {
             const trackingMatch = text.match(/Tracking\s*\n\s*(\d+)/i);
             const tracking = trackingMatch ? trackingMatch[1].trim() : "-";
 
-            // Extract Buyer Info: "Buyer\nChelsy Rosa\n(chelsyns)"
-            // Regex explanations:
-            // Buyer[:\s]+  : Matches "Buyer" followed by colon/whitespace (newlines included)
-            // (.*?)        : Non-greedy capture of Name (matches until the next part)
-            // \s*\(        : Optional whitespace followed by opening paren
-            // ([^)]+)      : Capture Username contents
-            // \)           : Closing paren
-            const buyerMatch = text.match(/Buyer[:\s]+(.*?)\s*\(([^)]+)\)/i);
-            const buyerName = buyerMatch ? buyerMatch[1].trim() : "-";
-            const buyerUsername = buyerMatch ? buyerMatch[2].trim() : "-";
+            // Buyer can be either:
+            // 1) "Buyer\nFull Name\n(username)"
+            // 2) "Buyer username" (username only)
+            let buyerName = "-";
+            let buyerUsername = "-";
+
+            const buyerWithNameMatch = text.match(
+                /Buyer[:\s]+(.*?)\s*\(([^)]+)\)/i,
+            );
+
+            if (buyerWithNameMatch) {
+                buyerName = buyerWithNameMatch[1].trim() || "-";
+                buyerUsername = buyerWithNameMatch[2].trim() || "-";
+            } else {
+                const buyerUsernameOnlyMatch = text.match(
+                    /Buyer[:\s]+([^\n\r]+)/i,
+                );
+                if (buyerUsernameOnlyMatch) {
+                    const usernameOnly = buyerUsernameOnlyMatch[1].trim();
+                    if (usernameOnly) {
+                        buyerName = usernameOnly;
+                        buyerUsername = usernameOnly;
+                    }
+                }
+            }
+
+            // If no explicit buyer name exists, mirror username into both fields.
+            if (
+                (!buyerName || buyerName === "-") &&
+                buyerUsername &&
+                buyerUsername !== "-"
+            ) {
+                buyerName = buyerUsername;
+            }
 
             return {
                 id: orderId,

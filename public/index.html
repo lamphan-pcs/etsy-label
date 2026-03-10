@@ -1395,8 +1395,15 @@
                 const meta = result.metadata || {};
                 const date = meta.date || "-";
                 const orderId = meta.orderId || meta.id || "-";
-                const customerName = meta.buyerName || "-";
-                const mailAccount = meta.buyerUsername || "-";
+                let customerName = meta.buyerName || "-";
+                let mailAccount = meta.buyerUsername || "-";
+
+                if (customerName === "-" && mailAccount !== "-") {
+                    customerName = mailAccount;
+                }
+                if (mailAccount === "-" && customerName !== "-") {
+                    mailAccount = customerName;
+                }
                 const shippingLabel = "";
                 const orderFrom =
                     meta.type === "etsy"
@@ -1429,12 +1436,18 @@
                         const dd = String(fd.getDate()).padStart(2, "0");
                         const yyyy = fd.getFullYear();
                         const hours = String(fd.getHours()).padStart(2, "0");
-                        const minutes = String(fd.getMinutes()).padStart(2, "0");
-                        const seconds = String(fd.getSeconds()).padStart(2, "0");
+                        const minutes = String(fd.getMinutes()).padStart(
+                            2,
+                            "0",
+                        );
+                        const seconds = String(fd.getSeconds()).padStart(
+                            2,
+                            "0",
+                        );
                         labelDownloadDateTime = `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds}`;
                     }
                 }
-                
+
                 // Check if already downloaded
                 const isDownloaded = result.downloaded ? "Yes" : "No";
 
@@ -1477,7 +1490,10 @@
                     const td = document.createElement("td");
                     td.textContent = val;
                     // Apply no-copy class to the last two columns (Label/Order Download Date and Downloaded)
-                    if (i === rowValues.length - 1 || i === rowValues.length - 2) {
+                    if (
+                        i === rowValues.length - 1 ||
+                        i === rowValues.length - 2
+                    ) {
                         td.classList.add("no-copy");
                     }
                     tr.appendChild(td);

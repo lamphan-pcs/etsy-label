@@ -89,20 +89,20 @@ app.post("/set-input-dir", express.json(), async (req, res) => {
 async function checkFileExists(filename) {
     try {
         if (!inputDir) return false;
-        
+
         // Check for exact filename (without extension)
         const filePath = path.join(inputDir, filename);
         if (fs.existsSync(filePath)) {
             return true;
         }
-        
+
         // Check for filename with .pdf extension
         // (Windows sometimes adds this automatically when downloading)
         const filePathWithExt = path.join(inputDir, `${filename}.pdf`);
         if (fs.existsSync(filePathWithExt)) {
             return true;
         }
-        
+
         return false;
     } catch (err) {
         console.warn(`Failed to check if file exists: ${filename}`, err);
@@ -510,7 +510,9 @@ app.post("/merge", upload.any(), async (req, res) => {
                             0;
 
                         // Check if output file already exists
-                        const fileExists = await checkFileExists(output.filename);
+                        const fileExists = await checkFileExists(
+                            output.filename,
+                        );
 
                         results.push({
                             filename: output.filename,
