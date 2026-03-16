@@ -175,191 +175,459 @@
     <body>
         <div class="container">
             <h1>Croissant</h1>
+
             <div
-                id="status"
-                style="
-                    margin-bottom: 1rem;
-                    color: #333;
-                    font-weight: bold;
-                    min-height: 1.5rem;
-                    text-align: center;
-                "
-            ></div>
-            <div style="text-align: right; margin-bottom: 0.5rem">
+                class="tab-bar"
+                style="margin-bottom: 1rem; display: flex; gap: 0.5rem"
+            >
                 <button
                     type="button"
-                    id="showConfigBtn"
-                    style="
-                        background: none;
-                        border: none;
-                        color: #1976d2;
-                        text-decoration: underline;
-                        cursor: pointer;
-                        font-size: 0.9rem;
-                    "
+                    id="tabLabelBtn"
+                    class="btn"
+                    style="flex: 1; background-color: #f0541e"
                 >
-                    📂 Change Input Folder
+                    Labels
+                </button>
+                <button
+                    type="button"
+                    id="tabExcelBtn"
+                    class="btn"
+                    style="flex: 1; background-color: #1976d2"
+                >
+                    Excel Merge
                 </button>
             </div>
-            <div class="config-bar" style="display: none">
-                <!-- Hidden config checkboxed -->
-            </div>
 
-            <!-- Removed Folder Mode UI, replaced with default scan info -->
-            <div
-                id="scan-info"
-                style="
-                    background: #e3f2fd;
-                    border: 1px solid #90caf9;
-                    padding: 1rem;
-                    margin-bottom: 1.5rem;
-                    border-radius: 4px;
-                    text-align: center;
-                    display: none;
-                "
-            ></div>
-
-            <!-- Auto Scan Results Section -->
-            <div
-                id="autoScanResultContainer"
-                class="result-container"
-                style="
-                    display: none;
-                    margin-bottom: 2rem;
-                    border-bottom: 2px dashed #ddd;
-                    padding-bottom: 2rem;
-                "
-            >
-                <h3 style="margin-top: 0; color: #1565c0">Auto-Scan Results</h3>
+            <div id="labelTab">
                 <div
+                    id="status"
                     style="
-                        display: flex;
-                        gap: 10px;
-                        justify-content: flex-end;
-                        margin-bottom: 0.5rem;
+                        margin-bottom: 1rem;
+                        color: #333;
+                        font-weight: bold;
+                        min-height: 1.5rem;
+                        text-align: center;
                     "
-                >
-                    <button id="autoDownloadCopyBtn" class="download-btn">
-                        Download & Copy Selected
-                    </button>
+                ></div>
+                <div style="text-align: right; margin-bottom: 0.5rem">
                     <button
-                        id="autoCopyDataOnlyBtn"
-                        class="download-btn"
-                        style="background-color: #2196f3"
+                        type="button"
+                        id="showConfigBtn"
+                        style="
+                            background: none;
+                            border: none;
+                            color: #1976d2;
+                            text-decoration: underline;
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                        "
                     >
-                        Copy Table Data
+                        📂 Change Input Folder
                     </button>
                 </div>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 30px">
-                                <input
-                                    type="checkbox"
-                                    id="autoSelectAllCheck"
-                                />
-                            </th>
-                            <th>Label Created</th>
-                            <th>Order ID</th>
-                            <th>Customer Name</th>
-                            <th>Mail/ Account</th>
-                            <th>Shipping Label</th>
-                            <th>Order from</th>
-                            <th>Platform</th>
-                            <th>Tracking number</th>
-                            <th>Status</th>
-                            <th>Date Ordered</th>
-                            <th class="no-copy">Label/Order Download Date</th>
-                            <th class="no-copy">Downloaded</th>
-                        </tr>
-                    </thead>
-                    <tbody id="autoTableBody"></tbody>
-                </table>
-            </div>
-
-            <div
-                id="config-panel"
-                style="
-                    background: #fff3e0;
-                    border: 1px solid #ffb74d;
-                    padding: 1.5rem;
-                    margin-bottom: 1.5rem;
-                    border-radius: 4px;
-                    display: none;
-                    text-align: center;
-                "
-            >
-                <h3 style="margin-top: 0; color: #f57c00">
-                    Setup Process Folder
-                </h3>
-                <p>
-                    Please enter the full folder path where your PDFs are
-                    stored.
-                </p>
-                <div
-                    style="
-                        display: flex;
-                        justify-content: center;
-                        gap: 10px;
-                        flex-wrap: wrap;
-                    "
-                >
-                    <input
-                        type="text"
-                        id="configPathInput"
-                        placeholder="C:\Users\Name\My Labels"
-                        style="
-                            flex: 1;
-                            max-width: 400px;
-                            padding: 0.5rem;
-                            border: 1px solid #ccc;
-                            border-radius: 4px;
-                        "
-                    />
-                    <button
-                        id="browseFolderBtn"
-                        class="btn"
-                        style="
-                            width: auto;
-                            padding: 0.5rem 1rem;
-                            background-color: #eee;
-                            color: #333;
-                            border: 1px solid #ccc;
-                        "
-                        title="Browse Folder"
-                    >
-                        📁 Browse
-                    </button>
-                    <button
-                        id="saveConfigBtn"
-                        class="btn"
-                        style="
-                            width: auto;
-                            padding: 0.5rem 1.5rem;
-                            background-color: #f57c00;
-                        "
-                    >
-                        Save Folder
-                    </button>
-                    <div class="spinner" id="configSpinner"></div>
+                <div class="config-bar" style="display: none">
+                    <!-- Hidden config checkboxed -->
                 </div>
-                <p
-                    id="config-error"
+
+                <!-- Removed Folder Mode UI, replaced with default scan info -->
+                <div
+                    id="scan-info"
                     style="
-                        color: red;
-                        font-size: 0.9rem;
-                        margin-top: 5px;
+                        background: #e3f2fd;
+                        border: 1px solid #90caf9;
+                        padding: 1rem;
+                        margin-bottom: 1.5rem;
+                        border-radius: 4px;
+                        text-align: center;
                         display: none;
                     "
-                ></p>
-            </div>
+                ></div>
 
-            <form id="uploadForm">
-                <div class="drop-zones">
-                    <div class="drop-zone" id="mainDropZone">
+                <!-- Auto Scan Results Section -->
+                <div
+                    id="autoScanResultContainer"
+                    class="result-container"
+                    style="
+                        display: none;
+                        margin-bottom: 2rem;
+                        border-bottom: 2px dashed #ddd;
+                        padding-bottom: 2rem;
+                    "
+                >
+                    <h3 style="margin-top: 0; color: #1565c0">
+                        Auto-Scan Results
+                    </h3>
+                    <div
+                        style="
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                            margin-bottom: 0.5rem;
+                        "
+                    >
+                        <button id="autoDownloadCopyBtn" class="download-btn">
+                            Download & Copy Selected
+                        </button>
+                        <button
+                            id="autoCopyDataOnlyBtn"
+                            class="download-btn"
+                            style="background-color: #2196f3"
+                        >
+                            Copy Table Data
+                        </button>
+                    </div>
+
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px">
+                                    <input
+                                        type="checkbox"
+                                        id="autoSelectAllCheck"
+                                    />
+                                </th>
+                                <th>Label Created</th>
+                                <th>Order ID</th>
+                                <th>Customer Name</th>
+                                <th>Mail/ Account</th>
+                                <th>Shipping Label</th>
+                                <th>Order from</th>
+                                <th>Platform</th>
+                                <th>Tracking number</th>
+                                <th>Status</th>
+                                <th>Date Ordered</th>
+                                <th class="no-copy">
+                                    Label/Order Download Date
+                                </th>
+                                <th class="no-copy">Downloaded</th>
+                            </tr>
+                        </thead>
+                        <tbody id="autoTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div
+                    id="config-panel"
+                    style="
+                        background: #fff3e0;
+                        border: 1px solid #ffb74d;
+                        padding: 1.5rem;
+                        margin-bottom: 1.5rem;
+                        border-radius: 4px;
+                        display: none;
+                        text-align: center;
+                    "
+                >
+                    <h3 style="margin-top: 0; color: #f57c00">
+                        Setup Process Folder
+                    </h3>
+                    <p>
+                        Please enter the full folder path where your PDFs are
+                        stored.
+                    </p>
+                    <div
+                        style="
+                            display: flex;
+                            justify-content: center;
+                            gap: 10px;
+                            flex-wrap: wrap;
+                        "
+                    >
+                        <input
+                            type="text"
+                            id="configPathInput"
+                            placeholder="C:\Users\Name\My Labels"
+                            style="
+                                flex: 1;
+                                max-width: 400px;
+                                padding: 0.5rem;
+                                border: 1px solid #ccc;
+                                border-radius: 4px;
+                            "
+                        />
+                        <button
+                            id="browseFolderBtn"
+                            class="btn"
+                            style="
+                                width: auto;
+                                padding: 0.5rem 1rem;
+                                background-color: #eee;
+                                color: #333;
+                                border: 1px solid #ccc;
+                            "
+                            title="Browse Folder"
+                        >
+                            📁 Browse
+                        </button>
+                        <button
+                            id="saveConfigBtn"
+                            class="btn"
+                            style="
+                                width: auto;
+                                padding: 0.5rem 1.5rem;
+                                background-color: #f57c00;
+                            "
+                        >
+                            Save Folder
+                        </button>
+                        <div class="spinner" id="configSpinner"></div>
+                    </div>
+                    <p
+                        id="config-error"
+                        style="
+                            color: red;
+                            font-size: 0.9rem;
+                            margin-top: 5px;
+                            display: none;
+                        "
+                    ></p>
+                </div>
+
+                <form id="uploadForm">
+                    <div class="drop-zones">
+                        <div class="drop-zone" id="mainDropZone">
+                            <p style="font-size: 1.2rem; margin-bottom: 0.5rem">
+                                <strong>Drag & Drop BOTH files here</strong>
+                            </p>
+                            <p
+                                class="small"
+                                style="
+                                    font-size: 0.8rem;
+                                    color: #888;
+                                    margin-top: 0;
+                                "
+                            >
+                                Drop multiple pairs at once. <br />
+                                Matching: Label filename ↔ Order ID in slip
+                            </p>
+                            <input
+                                type="file"
+                                id="filesInput"
+                                multiple
+                                style="display: none"
+                            />
+
+                            <div
+                                style="
+                                    margin-top: 1.5rem;
+                                    text-align: left;
+                                    background: #fafafa;
+                                    padding: 1rem;
+                                    border-radius: 4px;
+                                "
+                            >
+                                <div id="files-preview" style="color: #666">
+                                    ⚪ No files selected
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="drop-zones"
+                        style="border-top: 1px solid #eee; padding-top: 1rem"
+                    >
+                        <div
+                            class="drop-zone folder-mode"
+                            id="bulkDropZone"
+                            style="background: #f3e5f5; border-color: #ce93d8"
+                        >
+                            <p
+                                style="
+                                    font-size: 1.2rem;
+                                    margin-bottom: 0.5rem;
+                                    color: #6a1b9a;
+                                "
+                            >
+                                <strong>Bulk Processing</strong>
+                            </p>
+                            <p
+                                class="small"
+                                style="
+                                    font-size: 0.8rem;
+                                    color: #666;
+                                    margin-top: 0;
+                                "
+                            >
+                                Drop 2 files: One with multiple Labels (2/page)
+                                and one with multiple Slips.
+                                <br />
+                                Auto-matches by Order ID.
+                            </p>
+                            <input
+                                type="file"
+                                id="bulkFilesInput"
+                                multiple
+                                style="display: none"
+                            />
+                            <div
+                                id="bulk-files-preview"
+                                style="
+                                    margin-top: 1rem;
+                                    color: #666;
+                                    font-weight: bold;
+                                "
+                            >
+                                ⚪ No bulk files selected
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; margin-top: 1rem">
+                        <button
+                            type="button"
+                            class="btn"
+                            id="resetBtn"
+                            style="background-color: #757575; flex: 1"
+                        >
+                            Reset
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn"
+                            id="submitBtn"
+                            disabled
+                            style="flex: 2"
+                        >
+                            <div class="spinner"></div>
+                            Process
+                        </button>
+                    </div>
+                </form>
+
+                <div
+                    id="manualResultContainer"
+                    class="result-container"
+                    style="display: none"
+                >
+                    <h3 style="margin-top: 0; color: #f0541e">
+                        Drag & Drop Results
+                    </h3>
+                    <div
+                        style="
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                            margin-bottom: 0.5rem;
+                        "
+                    >
+                        <button id="manualDownloadCopyBtn" class="download-btn">
+                            Download & Copy Selected
+                        </button>
+                        <button
+                            id="manualCopyDataOnlyBtn"
+                            class="download-btn"
+                            style="background-color: #2196f3"
+                        >
+                            Copy Table Data
+                        </button>
+                    </div>
+
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px">
+                                    <input
+                                        type="checkbox"
+                                        id="manualSelectAllCheck"
+                                    />
+                                </th>
+                                <th>Label Created</th>
+                                <th>Order ID</th>
+                                <th>Customer Name</th>
+                                <th>Mail/ Account</th>
+                                <th>Shipping Label</th>
+                                <th>Order from</th>
+                                <th>Platform</th>
+                                <th>Tracking number</th>
+                                <th>Status</th>
+                                <th>Date Ordered</th>
+                                <th class="no-copy">
+                                    Label/Order Download Date
+                                </th>
+                                <th class="no-copy">Downloaded</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manualTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Bulk Result Container -->
+                <div
+                    id="bulkResultContainer"
+                    class="result-container"
+                    style="
+                        display: none;
+                        margin-top: 2rem;
+                        border-top: 2px dashed #ddd;
+                        padding-top: 2rem;
+                    "
+                >
+                    <h3 style="margin-top: 0; color: #7b1fa2">
+                        Bulk Processing Results
+                    </h3>
+                    <div
+                        style="
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                            margin-bottom: 0.5rem;
+                        "
+                    >
+                        <button id="bulkDownloadCopyBtn" class="download-btn">
+                            Download & Copy Selected
+                        </button>
+                        <button
+                            id="bulkCopyDataOnlyBtn"
+                            class="download-btn"
+                            style="background-color: #2196f3"
+                        >
+                            Copy Table Data
+                        </button>
+                    </div>
+
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px">
+                                    <input
+                                        type="checkbox"
+                                        id="bulkSelectAllCheck"
+                                    />
+                                </th>
+                                <th>Label Created</th>
+                                <th>Order ID</th>
+                                <th>Customer Name</th>
+                                <th>Mail/ Account</th>
+                                <th>Shipping Label</th>
+                                <th>Order from</th>
+                                <th>Platform</th>
+                                <th>Tracking number</th>
+                                <th>Status</th>
+                                <th>Date Ordered</th>
+                                <th class="no-copy">
+                                    Label/Order Download Date
+                                </th>
+                                <th class="no-copy">Downloaded</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- labelTab -->
+
+            <div id="excelTab" style="display: none">
+                <h3 style="margin-top: 0; color: #1976d2">Excel Merge</h3>
+                <p style="margin-top: 0; color: #555; font-size: 0.95rem">
+                    Upload a ZIP containing XLSX files. All files are merged
+                    vertically into a single sheet — first sheet of each file,
+                    from row 1 to the last row with data.
+                </p>
+                <div class="drop-zones" style="margin-bottom: 1rem">
+                    <div class="drop-zone" id="excelDropZone">
                         <p style="font-size: 1.2rem; margin-bottom: 0.5rem">
-                            <strong>Drag & Drop BOTH files here</strong>
+                            <strong>Drop ZIP or XLSX files here</strong>
                         </p>
                         <p
                             class="small"
@@ -369,78 +637,25 @@
                                 margin-top: 0;
                             "
                         >
-                            Drop multiple pairs at once. <br />
-                            Matching: Label filename ↔ Order ID in slip
+                            ZIP of XLSX files — first sheet only, merged
+                            top-to-bottom.
                         </p>
                         <input
                             type="file"
-                            id="filesInput"
+                            id="excelFilesInput"
                             multiple
                             style="display: none"
-                        />
-
-                        <div
-                            style="
-                                margin-top: 1.5rem;
-                                text-align: left;
-                                background: #fafafa;
-                                padding: 1rem;
-                                border-radius: 4px;
-                            "
-                        >
-                            <div id="files-preview" style="color: #666">
-                                ⚪ No files selected
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="drop-zones"
-                    style="border-top: 1px solid #eee; padding-top: 1rem"
-                >
-                    <div
-                        class="drop-zone folder-mode"
-                        id="bulkDropZone"
-                        style="background: #f3e5f5; border-color: #ce93d8"
-                    >
-                        <p
-                            style="
-                                font-size: 1.2rem;
-                                margin-bottom: 0.5rem;
-                                color: #6a1b9a;
-                            "
-                        >
-                            <strong>Bulk Processing</strong>
-                        </p>
-                        <p
-                            class="small"
-                            style="
-                                font-size: 0.8rem;
-                                color: #666;
-                                margin-top: 0;
-                            "
-                        >
-                            Drop 2 files: One with multiple Labels (2/page) and
-                            one with multiple Slips.
-                            <br />
-                            Auto-matches by Order ID.
-                        </p>
-                        <input
-                            type="file"
-                            id="bulkFilesInput"
-                            multiple
-                            style="display: none"
+                            accept=".xlsx,.zip"
                         />
                         <div
-                            id="bulk-files-preview"
+                            id="excel-files-preview"
                             style="
                                 margin-top: 1rem;
                                 color: #666;
                                 font-weight: bold;
                             "
                         >
-                            ⚪ No bulk files selected
+                            ⚪ No files selected
                         </div>
                     </div>
                 </div>
@@ -449,141 +664,40 @@
                     <button
                         type="button"
                         class="btn"
-                        id="resetBtn"
-                        style="background-color: #757575; flex: 1"
-                    >
-                        Reset
-                    </button>
-                    <button
-                        type="submit"
-                        class="btn"
-                        id="submitBtn"
+                        id="excelMergeBtn"
+                        style="flex: 1"
                         disabled
-                        style="flex: 2"
                     >
-                        <div class="spinner"></div>
-                        Process
-                    </button>
-                </div>
-            </form>
-
-            <div
-                id="manualResultContainer"
-                class="result-container"
-                style="display: none"
-            >
-                <h3 style="margin-top: 0; color: #f0541e">
-                    Drag & Drop Results
-                </h3>
-                <div
-                    style="
-                        display: flex;
-                        gap: 10px;
-                        justify-content: flex-end;
-                        margin-bottom: 0.5rem;
-                    "
-                >
-                    <button id="manualDownloadCopyBtn" class="download-btn">
-                        Download & Copy Selected
+                        Merge Files
                     </button>
                     <button
-                        id="manualCopyDataOnlyBtn"
+                        type="button"
                         class="download-btn"
-                        style="background-color: #2196f3"
+                        id="excelDownloadBtn"
+                        style="flex: 1; display: none"
                     >
-                        Copy Table Data
+                        Download Merged File
                     </button>
                 </div>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 30px">
-                                <input
-                                    type="checkbox"
-                                    id="manualSelectAllCheck"
-                                />
-                            </th>
-                            <th>Label Created</th>
-                            <th>Order ID</th>
-                            <th>Customer Name</th>
-                            <th>Mail/ Account</th>
-                            <th>Shipping Label</th>
-                            <th>Order from</th>
-                            <th>Platform</th>
-                            <th>Tracking number</th>
-                            <th>Status</th>
-                            <th>Date Ordered</th>
-                            <th class="no-copy">Label/Order Download Date</th>
-                            <th class="no-copy">Downloaded</th>
-                        </tr>
-                    </thead>
-                    <tbody id="manualTableBody"></tbody>
-                </table>
-            </div>
-
-            <!-- Bulk Result Container -->
-            <div
-                id="bulkResultContainer"
-                class="result-container"
-                style="
-                    display: none;
-                    margin-top: 2rem;
-                    border-top: 2px dashed #ddd;
-                    padding-top: 2rem;
-                "
-            >
-                <h3 style="margin-top: 0; color: #7b1fa2">
-                    Bulk Processing Results
-                </h3>
-                <div
-                    style="
-                        display: flex;
-                        gap: 10px;
-                        justify-content: flex-end;
-                        margin-bottom: 0.5rem;
-                    "
-                >
-                    <button id="bulkDownloadCopyBtn" class="download-btn">
-                        Download & Copy Selected
-                    </button>
+                <div style="display: flex; gap: 1rem; margin-top: 0.75rem">
                     <button
-                        id="bulkCopyDataOnlyBtn"
-                        class="download-btn"
-                        style="background-color: #2196f3"
+                        type="button"
+                        class="btn"
+                        id="excelCopyBtn"
+                        style="flex: 1; display: none"
                     >
-                        Copy Table Data
+                        Copy Merged Data
                     </button>
                 </div>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 30px">
-                                <input
-                                    type="checkbox"
-                                    id="bulkSelectAllCheck"
-                                />
-                            </th>
-                            <th>Label Created</th>
-                            <th>Order ID</th>
-                            <th>Customer Name</th>
-                            <th>Mail/ Account</th>
-                            <th>Shipping Label</th>
-                            <th>Order from</th>
-                            <th>Platform</th>
-                            <th>Tracking number</th>
-                            <th>Status</th>
-                            <th>Date Ordered</th>
-                            <th class="no-copy">Label/Order Download Date</th>
-                            <th class="no-copy">Downloaded</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bulkTableBody"></tbody>
-                </table>
+                <div
+                    id="excelStatus"
+                    style="margin-top: 1rem; font-weight: bold; color: #333"
+                ></div>
             </div>
         </div>
 
+        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+        <script src="/jszip.min.js"></script>
         <script>
             const dropZone = document.getElementById("mainDropZone");
             const fileInput = document.getElementById("filesInput");
@@ -599,6 +713,24 @@
             const showConfigBtn = document.getElementById("showConfigBtn");
             const configError = document.getElementById("config-error");
 
+            // Tabs
+            const tabLabelBtn = document.getElementById("tabLabelBtn");
+            const tabExcelBtn = document.getElementById("tabExcelBtn");
+            const labelTab = document.getElementById("labelTab");
+            const excelTab = document.getElementById("excelTab");
+
+            // Excel merge elements
+            const excelDropZone = document.getElementById("excelDropZone");
+            const excelFilesInput = document.getElementById("excelFilesInput");
+            const excelFilesPreview = document.getElementById(
+                "excel-files-preview",
+            );
+            const excelMergeBtn = document.getElementById("excelMergeBtn");
+            const excelDownloadBtn =
+                document.getElementById("excelDownloadBtn");
+            const excelCopyBtn = document.getElementById("excelCopyBtn");
+            const excelStatus = document.getElementById("excelStatus");
+
             // New Bulk Elements
             const bulkDropZone = document.getElementById("bulkDropZone");
             const bulkFilesInput = document.getElementById("bulkFilesInput");
@@ -610,6 +742,11 @@
 
             let selectedFiles = [];
             let selectedBulkFiles = []; // Storage for bulk files
+
+            // Excel merge state
+            let selectedExcelFiles = [];
+            let mergedExcelBlobUrl = null;
+            let mergedExcelText = "";
 
             // Storage for results
             let autoScanResults = [];
@@ -654,6 +791,8 @@
                 setupActionListeners("auto", () => autoScanResults);
                 setupActionListeners("manual", () => manualScanResults);
                 setupActionListeners("bulk", () => bulkScanResults);
+                setupTabs();
+                setupExcelMerge();
             });
 
             // Reset Handler
@@ -661,14 +800,27 @@
                 // Clear selection
                 selectedFiles = [];
                 selectedBulkFiles = []; // Clear bulk
+                selectedExcelFiles = [];
 
                 // Clear inputs
                 fileInput.value = "";
                 bulkFilesInput.value = "";
+                excelFilesInput.value = "";
 
                 // Clear UI
                 updatePreviews();
                 updateBulkPreviews();
+                excelFilesPreview.textContent = "⚪ No files selected";
+                excelStatus.textContent = "";
+                excelMergeBtn.disabled = true;
+                excelDownloadBtn.style.display = "none";
+                excelCopyBtn.style.display = "none";
+                excelCopyBtn.disabled = true;
+                mergedExcelText = "";
+                if (mergedExcelBlobUrl) {
+                    URL.revokeObjectURL(mergedExcelBlobUrl);
+                    mergedExcelBlobUrl = null;
+                }
 
                 dropZone.style.removeProperty("border-color");
                 dropZone.style.removeProperty("background-color");
@@ -1503,29 +1655,376 @@
                 return rowValues.join("\t");
             }
 
-            function copyToClipboard(text) {
-                navigator.clipboard
-                    .writeText(text)
-                    .then(() => {
-                        const originalText = statusDiv.textContent;
-                        statusDiv.textContent += " (Copied to clipboard!)";
-                        setTimeout(() => {
-                            if (
-                                statusDiv.textContent.includes(
-                                    "(Copied to clipboard!)",
-                                )
-                            ) {
-                                statusDiv.textContent =
-                                    statusDiv.textContent.replace(
-                                        " (Copied to clipboard!)",
-                                        "",
-                                    );
+            function copyToClipboard(text, statusElement = statusDiv) {
+                const updateStatus = (message) => {
+                    const originalText = statusElement.textContent;
+                    statusElement.textContent = `${originalText} (${message})`;
+                    setTimeout(() => {
+                        if (
+                            statusElement.textContent.includes(` (${message})`)
+                        ) {
+                            statusElement.textContent =
+                                statusElement.textContent.replace(
+                                    ` (${message})`,
+                                    "",
+                                );
+                        }
+                    }, 3000);
+                };
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard
+                        .writeText(text)
+                        .then(() => updateStatus("Copied to clipboard!"))
+                        .catch((err) => {
+                            console.error(
+                                "Failed to copy via Clipboard API:",
+                                err,
+                            );
+                            fallbackCopy(text, updateStatus);
+                        });
+                } else {
+                    fallbackCopy(text, updateStatus);
+                }
+            }
+
+            function fallbackCopy(text, updateStatus) {
+                try {
+                    const textarea = document.createElement("textarea");
+                    textarea.style.position = "fixed";
+                    textarea.style.left = "-9999px";
+                    textarea.style.top = "0";
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+
+                    const successful = document.execCommand("copy");
+                    document.body.removeChild(textarea);
+
+                    if (successful) {
+                        updateStatus("Copied to clipboard!");
+                    } else {
+                        throw new Error("execCommand(copy) failed");
+                    }
+                } catch (err) {
+                    console.error("Fallback copy failed:", err);
+                    updateStatus("Copy failed");
+                }
+            }
+
+            function setupTabs() {
+                const setActive = (tab) => {
+                    if (tab === "excel") {
+                        labelTab.style.display = "none";
+                        excelTab.style.display = "block";
+                        tabLabelBtn.style.opacity = "0.65";
+                        tabExcelBtn.style.opacity = "1";
+                    } else {
+                        labelTab.style.display = "block";
+                        excelTab.style.display = "none";
+                        tabLabelBtn.style.opacity = "1";
+                        tabExcelBtn.style.opacity = "0.65";
+                    }
+                };
+
+                tabLabelBtn.addEventListener("click", () => setActive("label"));
+                tabExcelBtn.addEventListener("click", () => setActive("excel"));
+
+                // Default to Labels tab
+                setActive("label");
+            }
+
+            function setupExcelMerge() {
+                excelDropZone.addEventListener("click", () =>
+                    excelFilesInput.click(),
+                );
+                excelFilesInput.addEventListener("change", (e) =>
+                    handleExcelFiles(e.target.files),
+                );
+
+                excelDropZone.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    excelDropZone.classList.add("dragover");
+                });
+                excelDropZone.addEventListener("dragleave", () =>
+                    excelDropZone.classList.remove("dragover"),
+                );
+                excelDropZone.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    excelDropZone.classList.remove("dragover");
+                    handleExcelFiles(e.dataTransfer.files);
+                });
+
+                excelMergeBtn.addEventListener("click", mergeExcelFiles);
+            }
+
+            function handleExcelFiles(files) {
+                if (!files || files.length === 0) return;
+                selectedExcelFiles = selectedExcelFiles.concat(
+                    Array.from(files),
+                );
+                // Reset merge state when new files are added
+                excelCopyBtn.style.display = "none";
+                excelCopyBtn.disabled = true;
+                mergedExcelText = "";
+                updateExcelPreview();
+                excelDropZone.style.borderColor = "#1976d2";
+                excelDropZone.style.backgroundColor = "#e3f2fd";
+                excelMergeBtn.disabled = false;
+            }
+
+            function updateExcelPreview() {
+                if (selectedExcelFiles.length === 0) {
+                    excelFilesPreview.textContent = "⚪ No files selected";
+                    excelMergeBtn.disabled = true;
+                    excelDownloadBtn.style.display = "none";
+                    return;
+                }
+                excelFilesPreview.innerHTML = selectedExcelFiles
+                    .map(
+                        (f) =>
+                            `<div>${f.name} (${Math.round(
+                                f.size / 1024,
+                            )} KB)</div>`,
+                    )
+                    .join("");
+            }
+
+            async function mergeExcelFiles() {
+                if (typeof JSZip === "undefined") {
+                    excelStatus.textContent =
+                        "Error: JSZip is not loaded. Please refresh the page.";
+                    return;
+                }
+
+                if (selectedExcelFiles.length === 0) {
+                    excelStatus.textContent = "No files selected.";
+                    return;
+                }
+
+                excelStatus.textContent = "Merging files…";
+                excelMergeBtn.disabled = true;
+
+                if (mergedExcelBlobUrl) {
+                    URL.revokeObjectURL(mergedExcelBlobUrl);
+                    mergedExcelBlobUrl = null;
+                }
+
+                try {
+                    const workbooks = [];
+
+                    for (const file of selectedExcelFiles) {
+                        const name = file.name.toLowerCase();
+
+                        if (name.endsWith(".zip")) {
+                            // Extract XLSX/XLS/CSV files from the ZIP
+                            const buffer = await file.arrayBuffer();
+                            const zip = await JSZip.loadAsync(buffer);
+                            const entries = [];
+
+                            zip.forEach((relativePath, entry) => {
+                                if (
+                                    !entry.dir &&
+                                    /\.xlsx$/i.test(relativePath) &&
+                                    !relativePath.startsWith("__MACOSX/")
+                                ) {
+                                    entries.push(entry);
+                                }
+                            });
+
+                            for (const entry of entries) {
+                                const entryBuffer =
+                                    await entry.async("arraybuffer");
+                                workbooks.push({
+                                    fileName: entry.name,
+                                    workbook: XLSX.read(entryBuffer, {
+                                        type: "array",
+                                    }),
+                                });
                             }
-                        }, 3000);
-                    })
-                    .catch((err) => {
-                        console.error("Failed to copy: ", err);
+                        } else {
+                            const buffer = await file.arrayBuffer();
+                            workbooks.push({
+                                fileName: file.name,
+                                workbook: XLSX.read(buffer, { type: "array" }),
+                            });
+                        }
+                    }
+
+                    const mergedRows = [];
+
+                    workbooks.forEach(({ workbook }) => {
+                        // Only merge the first sheet from each file
+                        const sheetName = workbook.SheetNames[0];
+                        if (!sheetName) return;
+
+                        const sheet = workbook.Sheets[sheetName];
+
+                        // Some exporters (e.g. TikTok Shop) set an incorrect !ref range
+                        // that doesn't cover all populated cells. Extend the range based
+                        // on actually present cell keys to avoid missing data.
+                        const allCellKeys = Object.keys(sheet).filter(
+                            (k) => !k.startsWith("!"),
+                        );
+                        if (allCellKeys.length > 0) {
+                            let maxRow = 0;
+                            let maxCol = 0;
+                            allCellKeys.forEach((key) => {
+                                const { r, c } = XLSX.utils.decode_cell(key);
+                                if (r > maxRow) maxRow = r;
+                                if (c > maxCol) maxCol = c;
+                            });
+                            const currentRef = sheet["!ref"]
+                                ? XLSX.utils.decode_range(sheet["!ref"])
+                                : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+                            sheet["!ref"] = XLSX.utils.encode_range({
+                                s: currentRef.s,
+                                e: {
+                                    r: Math.max(currentRef.e.r, maxRow),
+                                    c: Math.max(currentRef.e.c, maxCol),
+                                },
+                            });
+                        }
+
+                        // Fill merged cell ranges so each row/column has a value
+                        // (SheetJS only keeps the top-left value and leaves the rest blank)
+                        if (sheet["!merges"]) {
+                            sheet["!merges"].forEach((merge) => {
+                                const topLeft =
+                                    sheet[
+                                        XLSX.utils.encode_cell({
+                                            r: merge.s.r,
+                                            c: merge.s.c,
+                                        })
+                                    ];
+                                if (!topLeft) return;
+                                for (let r = merge.s.r; r <= merge.e.r; r++) {
+                                    for (
+                                        let c = merge.s.c;
+                                        c <= merge.e.c;
+                                        c++
+                                    ) {
+                                        const ref = XLSX.utils.encode_cell({
+                                            r,
+                                            c,
+                                        });
+                                        if (!sheet[ref]) {
+                                            sheet[ref] = { ...topLeft };
+                                        }
+                                    }
+                                }
+                            });
+                            // Prevent duplicates or weird behavior when converting to JSON
+                            delete sheet["!merges"];
+                        }
+
+                        const rows = XLSX.utils.sheet_to_json(sheet, {
+                            header: 1,
+                            raw: true,
+                            defval: "",
+                        });
+
+                        // Trim trailing empty rows, then append (first sheet only)
+                        const trimmed = trimEmptyRows(rows);
+                        if (trimmed.length > 0) {
+                            mergedRows.push(...trimmed);
+                        }
                     });
+
+                    if (mergedRows.length === 0) {
+                        excelStatus.textContent =
+                            "No data found in selected files.";
+                        return;
+                    }
+
+                    // Keep a tab-delimited representation for easy pasting
+                    // Ensure each row has the same number of columns so pasting stays aligned.
+                    const maxCols = mergedRows.reduce(
+                        (max, row) => Math.max(max, row.length),
+                        0,
+                    );
+                    mergedExcelText = mergedRows
+                        .map((row) => {
+                            const cols = [];
+                            for (let c = 0; c < maxCols; c++) {
+                                const cell = row[c];
+                                let text =
+                                    cell === null || cell === undefined
+                                        ? ""
+                                        : String(cell);
+                                // Prevent embedded tabs/newlines from breaking the paste layout.
+                                text = text
+                                    .replace(/\t/g, " ")
+                                    .replace(/\r?\n/g, " ");
+                                cols.push(text);
+                            }
+                            return cols.join("\t");
+                        })
+                        .join("\n");
+
+                    const mergedSheet = XLSX.utils.aoa_to_sheet(mergedRows);
+                    const mergedWb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(
+                        mergedWb,
+                        mergedSheet,
+                        "Merged",
+                    );
+
+                    const wbout = XLSX.write(mergedWb, {
+                        bookType: "xlsx",
+                        type: "array",
+                    });
+                    const blob = new Blob([wbout], {
+                        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    });
+                    mergedExcelBlobUrl = URL.createObjectURL(blob);
+
+                    excelDownloadBtn.style.display = "inline-block";
+                    excelDownloadBtn.onclick = () => {
+                        const a = document.createElement("a");
+                        a.href = mergedExcelBlobUrl;
+                        a.download = `merged_${Date.now()}.xlsx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    };
+
+                    excelCopyBtn.style.display = "inline-block";
+                    excelCopyBtn.disabled = false;
+                    excelCopyBtn.onclick = () => {
+                        copyToClipboard(mergedExcelText, excelStatus);
+                    };
+
+                    excelStatus.textContent = `Merged ${selectedExcelFiles.length} file(s) into ${mergedRows.length} row(s). Click Download or Copy.`;
+                } catch (err) {
+                    console.error(err);
+                    excelStatus.textContent =
+                        "Error merging files: " + err.message;
+                } finally {
+                    excelMergeBtn.disabled = false;
+                }
+            }
+
+            function trimEmptyRows(rows) {
+                let end = rows.length;
+                while (end > 0) {
+                    const row = rows[end - 1];
+                    if (
+                        !row ||
+                        row.every(
+                            (cell) =>
+                                cell === null ||
+                                cell === undefined ||
+                                cell === "",
+                        )
+                    ) {
+                        end--;
+                    } else {
+                        break;
+                    }
+                }
+                return rows.slice(0, end);
             }
 
             const form = document.getElementById("uploadForm");
