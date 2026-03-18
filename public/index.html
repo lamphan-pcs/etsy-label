@@ -204,6 +204,14 @@
                 >
                     TikTok Pairs
                 </button>
+                <button
+                    type="button"
+                    id="tabShopifyBtn"
+                    class="btn"
+                    style="flex: 1; background-color: #5c6ac4"
+                >
+                    Shopify
+                </button>
             </div>
 
             <div id="labelTab">
@@ -1124,6 +1132,148 @@
                     </table>
                 </div>
             </div>
+
+            <div id="shopifyTab" style="display: none">
+                <div
+                    id="shopifyStatus"
+                    style="
+                        margin-bottom: 1rem;
+                        color: #333;
+                        font-weight: bold;
+                        min-height: 1.5rem;
+                        text-align: center;
+                    "
+                ></div>
+
+                <div class="drop-zones" style="margin-top: 1rem">
+                    <div
+                        class="drop-zone"
+                        id="shopifyDropZone"
+                        style="background: #ede7f6; border-color: #7e57c2"
+                    >
+                        <p style="font-size: 1.2rem; margin-bottom: 0.5rem">
+                            <strong>Drop Shopify Bulk Export PDF here</strong>
+                        </p>
+                        <p
+                            class="small"
+                            style="
+                                font-size: 0.8rem;
+                                color: #666;
+                                margin-top: 0;
+                            "
+                        >
+                            Single PDF with alternating shipping labels &amp;
+                            packing slips.<br />
+                            Each order: 1 shipping label page + 1&ndash;N
+                            packing slip pages ending with
+                            &ldquo;app.rubyvibeco.com&rdquo;. Order ID is read
+                            from packing slips only.
+                        </p>
+                        <input
+                            type="file"
+                            id="shopifyFilesInput"
+                            accept=".pdf"
+                            style="display: none"
+                        />
+                        <div
+                            id="shopify-files-preview"
+                            style="
+                                margin-top: 1rem;
+                                color: #666;
+                                font-weight: bold;
+                            "
+                        >
+                            No file selected
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1rem">
+                    <button
+                        type="button"
+                        class="btn"
+                        id="shopifyResetBtn"
+                        style="background-color: #757575; flex: 1"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="button"
+                        class="btn"
+                        id="shopifyProcessBtn"
+                        style="flex: 2; background-color: #5c6ac4"
+                        disabled
+                    >
+                        Process Shopify Bulk
+                    </button>
+                </div>
+
+                <div
+                    id="shopifyResultContainer"
+                    class="result-container"
+                    style="display: none; margin-top: 2rem"
+                >
+                    <h3 style="margin-top: 0; color: #311b92">
+                        Shopify Bulk Results
+                    </h3>
+                    <div
+                        style="
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                            margin-bottom: 0.5rem;
+                        "
+                    >
+                        <button
+                            id="shopifyDownloadCopyBtn"
+                            class="download-btn"
+                        >
+                            Download and Copy Selected
+                        </button>
+                        <button
+                            id="shopifyDownloadZipBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Download ZIP
+                        </button>
+                        <button
+                            id="shopifyCopyDataOnlyBtn"
+                            class="download-btn"
+                            style="background-color: #7e57c2"
+                        >
+                            Copy Table Data
+                        </button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px">
+                                    <input
+                                        type="checkbox"
+                                        id="shopifySelectAllCheck"
+                                    />
+                                </th>
+                                <th>Label Created</th>
+                                <th>Order ID</th>
+                                <th>Customer Name</th>
+                                <th>Mail/ Account</th>
+                                <th>Shipping Label</th>
+                                <th>Order from</th>
+                                <th>Platform</th>
+                                <th>Tracking number</th>
+                                <th>Status</th>
+                                <th>Date Ordered</th>
+                                <th class="no-copy">
+                                    Label/Order Download Date
+                                </th>
+                                <th class="no-copy">Downloaded</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shopifyTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1147,9 +1297,11 @@
             const tabLabelBtn = document.getElementById("tabLabelBtn");
             const tabExcelBtn = document.getElementById("tabExcelBtn");
             const tabTikTokBtn = document.getElementById("tabTikTokBtn");
+            const tabShopifyBtn = document.getElementById("tabShopifyBtn");
             const labelTab = document.getElementById("labelTab");
             const excelTab = document.getElementById("excelTab");
             const tiktokTab = document.getElementById("tiktokTab");
+            const shopifyTab = document.getElementById("shopifyTab");
 
             // Excel merge elements
             const excelDropZone = document.getElementById("excelDropZone");
@@ -1211,6 +1363,18 @@
             const tiktokBulkResetBtn =
                 document.getElementById("tiktokBulkResetBtn");
 
+            // Shopify Elements
+            const shopifyDropZone = document.getElementById("shopifyDropZone");
+            const shopifyFilesInput =
+                document.getElementById("shopifyFilesInput");
+            const shopifyFilesPreview = document.getElementById(
+                "shopify-files-preview",
+            );
+            const shopifyProcessBtn =
+                document.getElementById("shopifyProcessBtn");
+            const shopifyResetBtn = document.getElementById("shopifyResetBtn");
+            const shopifyStatus = document.getElementById("shopifyStatus");
+
             // New Bulk Elements
             const bulkDropZone = document.getElementById("bulkDropZone");
             const bulkFilesInput = document.getElementById("bulkFilesInput");
@@ -1236,6 +1400,8 @@
             let bulkScanResults = [];
             let tiktokScanResults = [];
             let tiktokBulkScanResults = [];
+            let shopifyScanResults = [];
+            let selectedShopifyFile = null;
 
             // Helper functions for managing download records
             function saveDownloadRecord(orderId) {
@@ -1277,9 +1443,11 @@
                 setupActionListeners("bulk", () => bulkScanResults);
                 setupActionListeners("tiktok", () => tiktokScanResults);
                 setupActionListeners("tiktokBulk", () => tiktokBulkScanResults);
+                setupActionListeners("shopify", () => shopifyScanResults);
                 setupTabs();
                 setupExcelMerge();
                 setupTikTokTab();
+                setupShopifyTab();
             });
 
             // Reset Handler
@@ -2128,7 +2296,9 @@
                         ? "Etsy"
                         : meta.type === "tiktok"
                           ? "TikTok"
-                          : "-";
+                          : meta.type === "shopify"
+                            ? "Shopify"
+                            : "-";
                 const platform = "Real Order";
                 const status = "Awaiting collection";
                 const tracking = meta.tracking || "-";
@@ -2708,6 +2878,152 @@
                 }
             }
 
+            function setupShopifyTab() {
+                shopifyDropZone.addEventListener("click", () =>
+                    shopifyFilesInput.click(),
+                );
+                shopifyFilesInput.addEventListener("change", (e) =>
+                    handleShopifyFile(e.target.files),
+                );
+                shopifyDropZone.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    shopifyDropZone.classList.add("dragover");
+                });
+                shopifyDropZone.addEventListener("dragleave", () =>
+                    shopifyDropZone.classList.remove("dragover"),
+                );
+                shopifyDropZone.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    shopifyDropZone.classList.remove("dragover");
+                    handleShopifyFile(e.dataTransfer.files);
+                });
+                shopifyProcessBtn.addEventListener("click", () =>
+                    processShopifyFile(),
+                );
+                shopifyResetBtn.addEventListener("click", () => {
+                    selectedShopifyFile = null;
+                    shopifyFilesInput.value = "";
+                    updateShopifyPreview();
+                    shopifyStatus.textContent = "";
+                    shopifyDropZone.style.backgroundColor = "#ede7f6";
+                    shopifyDropZone.style.borderColor = "#7e57c2";
+                    document.getElementById(
+                        "shopifyResultContainer",
+                    ).style.display = "none";
+                    document.getElementById("shopifyTableBody").innerHTML = "";
+                    shopifyScanResults = [];
+                    document.getElementById("shopifySelectAllCheck").checked =
+                        false;
+                    checkShopifyReady();
+                });
+            }
+
+            function handleShopifyFile(files) {
+                if (!files || files.length === 0) return;
+                const pdf = Array.from(files).find((f) =>
+                    f.name.toLowerCase().endsWith(".pdf"),
+                );
+                if (!pdf) return;
+                selectedShopifyFile = pdf;
+                updateShopifyPreview();
+                shopifyDropZone.style.borderColor = "#4527a0";
+                shopifyDropZone.style.backgroundColor = "#d1c4e9";
+                checkShopifyReady();
+            }
+
+            function updateShopifyPreview() {
+                if (!selectedShopifyFile) {
+                    shopifyFilesPreview.textContent = "No file selected";
+                    shopifyFilesPreview.style.color = "#666";
+                } else {
+                    shopifyFilesPreview.textContent = `✅ ${selectedShopifyFile.name} (${Math.round(selectedShopifyFile.size / 1024)} KB)`;
+                    shopifyFilesPreview.style.color = "#4527a0";
+                    shopifyFilesPreview.style.fontWeight = "bold";
+                }
+            }
+
+            function checkShopifyReady() {
+                shopifyProcessBtn.disabled = !selectedShopifyFile;
+            }
+
+            async function processShopifyFile() {
+                if (!selectedShopifyFile) return;
+
+                shopifyProcessBtn.classList.add("loading");
+                shopifyProcessBtn.disabled = true;
+                shopifyStatus.textContent = "Processing Shopify bulk export…";
+                shopifyStatus.style.color = "#5c6ac4";
+
+                document.getElementById(
+                    "shopifyResultContainer",
+                ).style.display = "none";
+                document.getElementById("shopifyTableBody").innerHTML = "";
+                shopifyScanResults = [];
+                document.getElementById("shopifySelectAllCheck").checked =
+                    false;
+
+                try {
+                    const formData = new FormData();
+                    formData.append("file", selectedShopifyFile);
+
+                    const response = await fetch("/merge-shopify-bulk", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+
+                    const data = await response.json();
+                    if (data.results && data.results.length > 0) {
+                        shopifyScanResults = data.results;
+                        renderResults(
+                            shopifyScanResults,
+                            "shopifyResultContainer",
+                            "shopifyTableBody",
+                            "shopify",
+                        );
+
+                        shopifyStatus.textContent = `Success! Processed ${data.results.length} Shopify order(s).`;
+                        shopifyStatus.style.color = "green";
+
+                        document.getElementById(
+                            "shopifySelectAllCheck",
+                        ).checked = true;
+                        document
+                            .getElementById("shopifyTableBody")
+                            .querySelectorAll(".row-checkbox")
+                            .forEach((cb) => (cb.checked = true));
+
+                        selectedShopifyFile = null;
+                        shopifyFilesInput.value = "";
+                        updateShopifyPreview();
+                        shopifyDropZone.style.backgroundColor = "#ede7f6";
+                        shopifyDropZone.style.borderColor = "#7e57c2";
+                        checkShopifyReady();
+
+                        if (data.errors && data.errors.length > 0) {
+                            shopifyStatus.textContent += ` (${data.errors.length} warning(s))`;
+                            console.warn(data.errors);
+                        }
+                    } else {
+                        shopifyStatus.textContent =
+                            "No orders found in the uploaded file.";
+                        shopifyStatus.style.color = "#666";
+                        if (data.errors && data.errors.length > 0) {
+                            alert("Errors:\n" + data.errors.join("\n"));
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                    shopifyStatus.textContent = "Error: " + err.message;
+                    shopifyStatus.style.color = "red";
+                } finally {
+                    shopifyProcessBtn.classList.remove("loading");
+                    checkShopifyReady();
+                }
+            }
+
             function setupTabs() {
                 let tiktokScannedOnce = false;
                 const setActive = (tab) => {
@@ -2715,28 +3031,43 @@
                         labelTab.style.display = "none";
                         excelTab.style.display = "block";
                         tiktokTab.style.display = "none";
+                        shopifyTab.style.display = "none";
                         tabLabelBtn.style.opacity = "0.65";
                         tabExcelBtn.style.opacity = "1";
                         tabTikTokBtn.style.opacity = "0.65";
+                        tabShopifyBtn.style.opacity = "0.65";
                     } else if (tab === "tiktok") {
                         labelTab.style.display = "none";
                         excelTab.style.display = "none";
                         tiktokTab.style.display = "block";
+                        shopifyTab.style.display = "none";
                         tabLabelBtn.style.opacity = "0.65";
                         tabExcelBtn.style.opacity = "0.65";
                         tabTikTokBtn.style.opacity = "1";
+                        tabShopifyBtn.style.opacity = "0.65";
 
                         if (!tiktokScannedOnce) {
                             tiktokScannedOnce = true;
                             scanTikTokDefaultFolder();
                         }
+                    } else if (tab === "shopify") {
+                        labelTab.style.display = "none";
+                        excelTab.style.display = "none";
+                        tiktokTab.style.display = "none";
+                        shopifyTab.style.display = "block";
+                        tabLabelBtn.style.opacity = "0.65";
+                        tabExcelBtn.style.opacity = "0.65";
+                        tabTikTokBtn.style.opacity = "0.65";
+                        tabShopifyBtn.style.opacity = "1";
                     } else {
                         labelTab.style.display = "block";
                         excelTab.style.display = "none";
                         tiktokTab.style.display = "none";
+                        shopifyTab.style.display = "none";
                         tabLabelBtn.style.opacity = "1";
                         tabExcelBtn.style.opacity = "0.65";
                         tabTikTokBtn.style.opacity = "0.65";
+                        tabShopifyBtn.style.opacity = "0.65";
                     }
                 };
 
@@ -2744,6 +3075,9 @@
                 tabExcelBtn.addEventListener("click", () => setActive("excel"));
                 tabTikTokBtn.addEventListener("click", () =>
                     setActive("tiktok"),
+                );
+                tabShopifyBtn.addEventListener("click", () =>
+                    setActive("shopify"),
                 );
 
                 // Default to Labels tab

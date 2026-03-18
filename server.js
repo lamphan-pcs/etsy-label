@@ -7,6 +7,7 @@ const { exec } = require("child_process");
 const {
     processLabels,
     processTikTokPair,
+    processShopifyBulk,
     extractLabelData,
     extractBulkLabels,
     extractBulkSlips,
@@ -753,6 +754,27 @@ app.post("/merge-tiktok-bulk", upload.any(), async (req, res) => {
         res.json({ success: true, results, errors });
     } catch (err) {
         console.error("TikTok bulk error:", err);
+        res.status(500).send("Server Error: " + err.message);
+    }
+});
+
+app.post("/merge-shopify-bulk", upload.single("file"), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).send("No file uploaded.");
+        }
+
+        const { results, errors } = await processShopifyBulk(req.file.buffer);
+
+        if (results.length === 0 && errors.length > 0) {
+            return res
+                .status(400)
+                .send("Processing failed:\n" + errors.join("\n"));
+        }
+
+        res.json({ success: true, results, errors });
+    } catch (err) {
+        console.error("Shopify bulk error:", err);
         res.status(500).send("Server Error: " + err.message);
     }
 });

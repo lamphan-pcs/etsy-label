@@ -573,6 +573,102 @@ async function hasItemsText(buffer) {
 }
 
 /**
+ * Processes a Shopify bulk export PDF that interleaves shipping labels and packing slips.
+ * Each order = 1 shipping label page + 1-N packing slip pages.
+ * Packing slips end with the text "app.rubyvibeco.com".
+ * Order ID is extracted from packing slip pages only (page 0 of each order is the shipping label).
+ * @param {Buffer} buffer
+ * @returns {Promise<{results: Array, errors: Array}>}
+ */
+async function processShopifyBulk(buffer) {
+    const results = [];
+    const errors = [];
+    const pdfDoc = await PDFDocument.load(buffer);
+    const pageCount = pdfDoc.getPageCount();
+
+    // Group pages into per-order blocks; each block ends when "app.rubyvibeco.com" appears
+    const orders = [];
+    let currentGroup = [];
+
+    for (let i = 0; i < pageCount; i++) {
+        const singleDoc = await PDFDocument.create();
+        const [copiedPage] = await singleDoc.copyPages(pdfDoc, [i]);
+        singleDoc.addPage(copiedPage);
+        const singleBuffer = Buffer.from(await singleDoc.save());
+
+        let pageText = "";
+        try {
+            const data = await pdfParse(singleBuffer);
+            pageText = data.text || "";
+        } catch (e) {
+            // ignore per-page parse errors
+        }
+
+        currentGroup.push({ pageIndex: i, text: pageText });
+
+        if (pageText.includes("app.rubyvibeco.com")) {
+            orders.push(currentGroup);
+            currentGroup = [];
+        }
+    }
+
+    if (currentGroup.length > 0) {
+        errors.push(
+            `Warning: ${currentGroup.length} trailing page(s) had no "app.rubyvibeco.com" end marker and were skipped.`,
+        );
+    }
+
+    if (orders.length === 0) {
+        return {
+            results: [],
+            errors: [
+                'No orders found. Ensure each packing slip ends with "app.rubyvibeco.com".',
+            ],
+        };
+    }
+
+    for (let orderIdx = 0; orderIdx < orders.length; orderIdx++) {
+        const group = orders[orderIdx];
+        // Packing slip pages start at index 1 (index 0 is the shipping label)
+        const slipPages = group.slice(1);
+        const combinedSlipText = slipPages.map((p) => p.text).join("\n");
+
+        // Match "Order #1234", "Order 216459429", "Order #1234-A", etc.
+        const orderIdMatch = combinedSlipText.match(/Order\s+(#[\w-]+|\d+)/i);
+        const orderId = orderIdMatch ? orderIdMatch[1].trim() : null;
+
+        if (!orderId) {
+            errors.push(
+                `Order ${orderIdx + 1}: Could not find an Order ID in packing slip text. Skipping.`,
+            );
+            continue;
+        }
+
+        const mergedDoc = await PDFDocument.create();
+        const pageIndices = group.map((p) => p.pageIndex);
+        const copiedPages = await mergedDoc.copyPages(pdfDoc, pageIndices);
+        copiedPages.forEach((p) => mergedDoc.addPage(p));
+
+        const pdfBytes = await mergedDoc.save();
+        results.push({
+            pdfBase64: Buffer.from(pdfBytes).toString("base64"),
+            filename: orderId,
+            metadata: {
+                orderId,
+                date: "-",
+                tracking: "-",
+                type: "shopify",
+                buyerName: "-",
+                buyerUsername: "-",
+            },
+        });
+        console.log(`Shopify: Order ${orderId} → ${group.length} page(s)`);
+    }
+
+    return { results, errors };
+}
+
+/**
  * Merges two PDFs without Etsy-specific crop logic.
  * Used for TikTok pair processing where both files already contain Order IDs.
  *
@@ -610,6 +706,7 @@ async function processTikTokPair(file1Buffer, file2Buffer, orderId) {
 module.exports = {
     processLabels,
     processTikTokPair,
+    processShopifyBulk,
     extractLabelData,
     extractBulkLabels,
     extractBulkSlips,
