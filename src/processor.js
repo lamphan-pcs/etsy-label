@@ -557,11 +557,63 @@ async function isSlip(buffer) {
     }
 }
 
+/**
+ * Returns true if the PDF contains the TikTok packing-slip marker "app.rubyvibeco.com".
+ * Used to identify TikTok packing slips vs shipping labels.
+ * @param {Buffer} buffer
+ * @returns {Promise<boolean>}
+ */
+async function hasItemsText(buffer) {
+    try {
+        const data = await pdfParse(buffer);
+        return data.text.includes("app.rubyvibeco.com");
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Merges two PDFs without Etsy-specific crop logic.
+ * Used for TikTok pair processing where both files already contain Order IDs.
+ *
+ * @param {Buffer} file1Buffer
+ * @param {Buffer} file2Buffer
+ * @param {string} orderId
+ * @returns {Promise<{pdfBytes: Uint8Array, filename: string, metadata: Object}>}
+ */
+async function processTikTokPair(file1Buffer, file2Buffer, orderId) {
+    const mergedPdf = await PDFDocument.create();
+    const pdf1 = await PDFDocument.load(file1Buffer);
+    const pdf2 = await PDFDocument.load(file2Buffer);
+
+    const pages1 = await mergedPdf.copyPages(pdf1, pdf1.getPageIndices());
+    pages1.forEach((p) => mergedPdf.addPage(p));
+
+    const pages2 = await mergedPdf.copyPages(pdf2, pdf2.getPageIndices());
+    pages2.forEach((p) => mergedPdf.addPage(p));
+
+    const pdfBytes = await mergedPdf.save();
+    return {
+        pdfBytes,
+        filename: `#${orderId}`,
+        metadata: {
+            orderId,
+            date: "-",
+            tracking: "-",
+            type: "tiktok",
+            buyerName: "-",
+            buyerUsername: "-",
+        },
+    };
+}
+
 module.exports = {
     processLabels,
+    processTikTokPair,
     extractLabelData,
     extractBulkLabels,
     extractBulkSlips,
     getIdsFromPdf,
     isSlip,
+    hasItemsText,
 };

@@ -196,6 +196,14 @@
                 >
                     Excel Merge
                 </button>
+                <button
+                    type="button"
+                    id="tabTikTokBtn"
+                    class="btn"
+                    style="flex: 1; background-color: #00897b"
+                >
+                    TikTok Pairs
+                </button>
             </div>
 
             <div id="labelTab">
@@ -267,6 +275,13 @@
                     >
                         <button id="autoDownloadCopyBtn" class="download-btn">
                             Download & Copy Selected
+                        </button>
+                        <button
+                            id="autoDownloadZipBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Download ZIP
                         </button>
                         <button
                             id="autoCopyDataOnlyBtn"
@@ -515,6 +530,13 @@
                             Download & Copy Selected
                         </button>
                         <button
+                            id="manualDownloadZipBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Download ZIP
+                        </button>
+                        <button
                             id="manualCopyDataOnlyBtn"
                             class="download-btn"
                             style="background-color: #2196f3"
@@ -576,6 +598,13 @@
                     >
                         <button id="bulkDownloadCopyBtn" class="download-btn">
                             Download & Copy Selected
+                        </button>
+                        <button
+                            id="bulkDownloadZipBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Download ZIP
                         </button>
                         <button
                             id="bulkCopyDataOnlyBtn"
@@ -694,6 +723,407 @@
                     style="margin-top: 1rem; font-weight: bold; color: #333"
                 ></div>
             </div>
+
+            <div id="tiktokTab" style="display: none">
+                <div
+                    id="tiktokStatus"
+                    style="
+                        margin-bottom: 1rem;
+                        color: #333;
+                        font-weight: bold;
+                        min-height: 1.5rem;
+                        text-align: center;
+                    "
+                ></div>
+                <div style="text-align: right; margin-bottom: 0.5rem">
+                    <button
+                        type="button"
+                        id="showTikTokConfigBtn"
+                        style="
+                            background: none;
+                            border: none;
+                            color: #00897b;
+                            text-decoration: underline;
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                        "
+                    >
+                        Change TikTok Input Folder
+                    </button>
+                </div>
+
+                <div
+                    id="tiktok-scan-info"
+                    style="
+                        background: #e0f2f1;
+                        border: 1px solid #80cbc4;
+                        padding: 1rem;
+                        margin-bottom: 1.5rem;
+                        border-radius: 4px;
+                        text-align: center;
+                        display: none;
+                    "
+                ></div>
+
+                <div
+                    id="tiktok-config-panel"
+                    style="
+                        background: #e0f7fa;
+                        border: 1px solid #4dd0e1;
+                        padding: 1.5rem;
+                        margin-bottom: 1.5rem;
+                        border-radius: 4px;
+                        display: none;
+                        text-align: center;
+                    "
+                >
+                    <h3 style="margin-top: 0; color: #00796b">
+                        Setup TikTok Folder
+                    </h3>
+                    <p>
+                        Enter the folder used for TikTok pair auto-processing.
+                    </p>
+                    <div
+                        style="
+                            display: flex;
+                            justify-content: center;
+                            gap: 10px;
+                            flex-wrap: wrap;
+                        "
+                    >
+                        <input
+                            type="text"
+                            id="tiktokConfigPathInput"
+                            placeholder="C:\Users\Name\TikTok Labels"
+                            style="
+                                flex: 1;
+                                max-width: 400px;
+                                padding: 0.5rem;
+                                border: 1px solid #ccc;
+                                border-radius: 4px;
+                            "
+                        />
+                        <button
+                            id="tiktokBrowseFolderBtn"
+                            class="btn"
+                            style="
+                                width: auto;
+                                padding: 0.5rem 1rem;
+                                background-color: #eee;
+                                color: #333;
+                                border: 1px solid #ccc;
+                            "
+                        >
+                            Browse
+                        </button>
+                        <button
+                            id="tiktokSaveConfigBtn"
+                            class="btn"
+                            style="
+                                width: auto;
+                                padding: 0.5rem 1.5rem;
+                                background-color: #00897b;
+                            "
+                        >
+                            Save Folder
+                        </button>
+                    </div>
+                    <p
+                        id="tiktok-config-error"
+                        style="
+                            color: red;
+                            font-size: 0.9rem;
+                            margin-top: 5px;
+                            display: none;
+                        "
+                    ></p>
+                </div>
+
+                <div
+                    style="
+                        display: flex;
+                        justify-content: center;
+                        margin: 1rem 0;
+                    "
+                >
+                    <button
+                        type="button"
+                        class="btn"
+                        id="tiktokAutoScanBtn"
+                        style="
+                            width: auto;
+                            padding: 0.75rem 1.5rem;
+                            background-color: #00897b;
+                        "
+                    >
+                        Auto Process Folder
+                    </button>
+                </div>
+
+                <div class="drop-zones" style="margin-top: 1rem">
+                    <div
+                        class="drop-zone"
+                        id="tiktokDropZone"
+                        style="background: #e0f2f1; border-color: #80cbc4"
+                    >
+                        <p style="font-size: 1.2rem; margin-bottom: 0.5rem">
+                            <strong>Drop TikTok pair files here</strong>
+                        </p>
+                        <p
+                            class="small"
+                            style="
+                                font-size: 0.8rem;
+                                color: #666;
+                                margin-top: 0;
+                            "
+                        >
+                            Each pair is matched using text like: Order #2525
+                        </p>
+                        <input
+                            type="file"
+                            id="tiktokFilesInput"
+                            multiple
+                            style="display: none"
+                        />
+                        <div
+                            id="tiktok-files-preview"
+                            style="
+                                margin-top: 1rem;
+                                color: #666;
+                                font-weight: bold;
+                            "
+                        >
+                            No files selected
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1rem">
+                    <button
+                        type="button"
+                        class="btn"
+                        id="tiktokResetBtn"
+                        style="background-color: #757575; flex: 1"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="button"
+                        class="btn"
+                        id="tiktokProcessBtn"
+                        style="flex: 2; background-color: #00897b"
+                        disabled
+                    >
+                        Process TikTok Pairs
+                    </button>
+                </div>
+
+                <div
+                    id="tiktokResultContainer"
+                    class="result-container"
+                    style="display: none; margin-top: 2rem"
+                >
+                    <h3 style="margin-top: 0; color: #00796b">
+                        TikTok Pair Results
+                    </h3>
+                    <div
+                        style="
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                            margin-bottom: 0.5rem;
+                        "
+                    >
+                        <button id="tiktokDownloadCopyBtn" class="download-btn">
+                            Download and Copy Selected
+                        </button>
+                        <button
+                            id="tiktokDownloadZipBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Download ZIP
+                        </button>
+                        <button
+                            id="tiktokCopyDataOnlyBtn"
+                            class="download-btn"
+                            style="background-color: #26a69a"
+                        >
+                            Copy Table Data
+                        </button>
+                    </div>
+
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px">
+                                    <input
+                                        type="checkbox"
+                                        id="tiktokSelectAllCheck"
+                                    />
+                                </th>
+                                <th>Label Created</th>
+                                <th>Order ID</th>
+                                <th>Customer Name</th>
+                                <th>Mail/ Account</th>
+                                <th>Shipping Label</th>
+                                <th>Order from</th>
+                                <th>Platform</th>
+                                <th>Tracking number</th>
+                                <th>Status</th>
+                                <th>Date Ordered</th>
+                                <th class="no-copy">
+                                    Label/Order Download Date
+                                </th>
+                                <th class="no-copy">Downloaded</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tiktokTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- TikTok Bulk Processing -->
+                <div
+                    class="drop-zones"
+                    style="
+                        margin-top: 2rem;
+                        border-top: 2px dashed #ddd;
+                        padding-top: 2rem;
+                    "
+                >
+                    <div
+                        class="drop-zone folder-mode"
+                        id="tiktokBulkDropZone"
+                        style="background: #f1f8e9; border-color: #a5d6a7"
+                    >
+                        <p
+                            style="
+                                font-size: 1.2rem;
+                                margin-bottom: 0.5rem;
+                                color: #2e7d32;
+                            "
+                        >
+                            <strong>TikTok Bulk Processing</strong>
+                        </p>
+                        <p
+                            class="small"
+                            style="
+                                font-size: 0.8rem;
+                                color: #555;
+                                margin-top: 0;
+                            "
+                        >
+                            Drop 1 bulk picking-slips PDF (contains
+                            &ldquo;Items&rdquo;) + individual shipping label
+                            PDFs.<br />
+                            Matches by Order ID &mdash; outputs shipping label
+                            first, then picking slip.
+                        </p>
+                        <input
+                            type="file"
+                            id="tiktokBulkFilesInput"
+                            multiple
+                            style="display: none"
+                        />
+                        <div
+                            id="tiktok-bulk-files-preview"
+                            style="
+                                margin-top: 1rem;
+                                color: #666;
+                                font-weight: bold;
+                            "
+                        >
+                            No files selected
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1rem">
+                    <button
+                        type="button"
+                        class="btn"
+                        id="tiktokBulkResetBtn"
+                        style="background-color: #757575; flex: 1"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="button"
+                        class="btn"
+                        id="tiktokBulkProcessBtn"
+                        style="flex: 2; background-color: #388e3c"
+                        disabled
+                    >
+                        Process TikTok Bulk
+                    </button>
+                </div>
+
+                <div
+                    id="tiktokBulkResultContainer"
+                    class="result-container"
+                    style="display: none; margin-top: 2rem"
+                >
+                    <h3 style="margin-top: 0; color: #2e7d32">
+                        TikTok Bulk Results
+                    </h3>
+                    <div
+                        style="
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                            margin-bottom: 0.5rem;
+                        "
+                    >
+                        <button
+                            id="tiktokBulkDownloadCopyBtn"
+                            class="download-btn"
+                        >
+                            Download and Copy Selected
+                        </button>
+                        <button
+                            id="tiktokBulkDownloadZipBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Download ZIP
+                        </button>
+                        <button
+                            id="tiktokBulkCopyDataOnlyBtn"
+                            class="download-btn"
+                            style="background-color: #4caf50"
+                        >
+                            Copy Table Data
+                        </button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px">
+                                    <input
+                                        type="checkbox"
+                                        id="tiktokBulkSelectAllCheck"
+                                    />
+                                </th>
+                                <th>Label Created</th>
+                                <th>Order ID</th>
+                                <th>Customer Name</th>
+                                <th>Mail/ Account</th>
+                                <th>Shipping Label</th>
+                                <th>Order from</th>
+                                <th>Platform</th>
+                                <th>Tracking number</th>
+                                <th>Status</th>
+                                <th>Date Ordered</th>
+                                <th class="no-copy">
+                                    Label/Order Download Date
+                                </th>
+                                <th class="no-copy">Downloaded</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tiktokBulkTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -716,8 +1146,10 @@
             // Tabs
             const tabLabelBtn = document.getElementById("tabLabelBtn");
             const tabExcelBtn = document.getElementById("tabExcelBtn");
+            const tabTikTokBtn = document.getElementById("tabTikTokBtn");
             const labelTab = document.getElementById("labelTab");
             const excelTab = document.getElementById("excelTab");
+            const tiktokTab = document.getElementById("tiktokTab");
 
             // Excel merge elements
             const excelDropZone = document.getElementById("excelDropZone");
@@ -730,6 +1162,54 @@
                 document.getElementById("excelDownloadBtn");
             const excelCopyBtn = document.getElementById("excelCopyBtn");
             const excelStatus = document.getElementById("excelStatus");
+
+            // TikTok pair elements
+            const tiktokStatus = document.getElementById("tiktokStatus");
+            const tiktokDropZone = document.getElementById("tiktokDropZone");
+            const tiktokFilesInput =
+                document.getElementById("tiktokFilesInput");
+            const tiktokFilesPreview = document.getElementById(
+                "tiktok-files-preview",
+            );
+            const tiktokProcessBtn =
+                document.getElementById("tiktokProcessBtn");
+            const tiktokResetBtn = document.getElementById("tiktokResetBtn");
+            const tiktokAutoScanBtn =
+                document.getElementById("tiktokAutoScanBtn");
+            const tiktokScanInfo = document.getElementById("tiktok-scan-info");
+            const tiktokConfigPanel = document.getElementById(
+                "tiktok-config-panel",
+            );
+            const showTikTokConfigBtn = document.getElementById(
+                "showTikTokConfigBtn",
+            );
+            const tiktokConfigPathInput = document.getElementById(
+                "tiktokConfigPathInput",
+            );
+            const tiktokBrowseFolderBtn = document.getElementById(
+                "tiktokBrowseFolderBtn",
+            );
+            const tiktokSaveConfigBtn = document.getElementById(
+                "tiktokSaveConfigBtn",
+            );
+            const tiktokConfigError = document.getElementById(
+                "tiktok-config-error",
+            );
+
+            // TikTok Bulk Elements
+            const tiktokBulkDropZone =
+                document.getElementById("tiktokBulkDropZone");
+            const tiktokBulkFilesInput = document.getElementById(
+                "tiktokBulkFilesInput",
+            );
+            const tiktokBulkFilesPreview = document.getElementById(
+                "tiktok-bulk-files-preview",
+            );
+            const tiktokBulkProcessBtn = document.getElementById(
+                "tiktokBulkProcessBtn",
+            );
+            const tiktokBulkResetBtn =
+                document.getElementById("tiktokBulkResetBtn");
 
             // New Bulk Elements
             const bulkDropZone = document.getElementById("bulkDropZone");
@@ -747,11 +1227,15 @@
             let selectedExcelFiles = [];
             let mergedExcelBlobUrl = null;
             let mergedExcelText = "";
+            let selectedTikTokFiles = [];
+            let selectedTikTokBulkFiles = [];
 
             // Storage for results
             let autoScanResults = [];
             let manualScanResults = [];
             let bulkScanResults = [];
+            let tiktokScanResults = [];
+            let tiktokBulkScanResults = [];
 
             // Helper functions for managing download records
             function saveDownloadRecord(orderId) {
@@ -791,8 +1275,11 @@
                 setupActionListeners("auto", () => autoScanResults);
                 setupActionListeners("manual", () => manualScanResults);
                 setupActionListeners("bulk", () => bulkScanResults);
+                setupActionListeners("tiktok", () => tiktokScanResults);
+                setupActionListeners("tiktokBulk", () => tiktokBulkScanResults);
                 setupTabs();
                 setupExcelMerge();
+                setupTikTokTab();
             });
 
             // Reset Handler
@@ -1187,6 +1674,57 @@
                         handleCopy(checkboxes);
                     });
                 }
+
+                // Download ZIP button
+                const zipBtn = document.getElementById(
+                    `${prefix}DownloadZipBtn`,
+                );
+                if (zipBtn) {
+                    zipBtn.addEventListener("click", async () => {
+                        const checkboxes = tbody.querySelectorAll(
+                            ".row-checkbox:checked",
+                        );
+                        if (checkboxes.length === 0) {
+                            alert("Please select items to download.");
+                            return;
+                        }
+                        const results = getResultsFn();
+                        const items = [];
+                        checkboxes.forEach((cb) => {
+                            const idx = parseInt(cb.dataset.index);
+                            if (!isNaN(idx) && results[idx]) {
+                                items.push(results[idx]);
+                            }
+                        });
+                        await downloadSelectedAsZip(items);
+
+                        // Record downloads
+                        items.forEach((result) => {
+                            const meta = result.metadata || {};
+                            const orderId = meta.orderId || meta.id;
+                            if (orderId) {
+                                saveDownloadRecord(orderId);
+                                // Update download date cell in each matching row
+                                checkboxes.forEach((cb) => {
+                                    const idx = parseInt(cb.dataset.index);
+                                    if (
+                                        !isNaN(idx) &&
+                                        results[idx] &&
+                                        (results[idx].metadata?.orderId ||
+                                            results[idx].metadata?.id) ===
+                                            orderId
+                                    ) {
+                                        const dateCell =
+                                            cb.closest("tr").cells[11];
+                                        if (dateCell)
+                                            dateCell.textContent =
+                                                getDownloadRecord(orderId);
+                                    }
+                                });
+                            }
+                        });
+                    });
+                }
             }
 
             async function processFiles() {
@@ -1543,6 +2081,34 @@
                 window.URL.revokeObjectURL(url);
             }
 
+            async function downloadSelectedAsZip(results) {
+                if (typeof JSZip === "undefined") {
+                    alert("JSZip is not loaded. Please refresh the page.");
+                    return;
+                }
+
+                const zip = new JSZip();
+                results.forEach((result) => {
+                    const filename = result.filename.replace(/\.pdf$/i, "");
+                    const byteCharacters = atob(result.pdfBase64);
+                    const byteArray = new Uint8Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteArray[i] = byteCharacters.charCodeAt(i);
+                    }
+                    zip.file(filename, byteArray);
+                });
+
+                const blob = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `labels_${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            }
+
             function addTableRow(result, index, tbody, type) {
                 const meta = result.metadata || {};
                 const date = meta.date || "-";
@@ -1713,23 +2279,472 @@
                 }
             }
 
+            function setupTikTokTab() {
+                showTikTokConfigBtn.addEventListener("click", () => {
+                    const isHidden = tiktokConfigPanel.style.display === "none";
+                    tiktokConfigPanel.style.display = isHidden
+                        ? "block"
+                        : "none";
+                    if (isHidden) {
+                        tiktokConfigPathInput.focus();
+                    }
+                });
+
+                tiktokBrowseFolderBtn.addEventListener("click", async () => {
+                    try {
+                        tiktokBrowseFolderBtn.classList.add("loading");
+                        tiktokBrowseFolderBtn.disabled = true;
+
+                        const res = await fetch("/pick-folder");
+                        const data = await res.json();
+
+                        if (data.success && data.path) {
+                            tiktokConfigPathInput.value = data.path;
+                        } else if (data.error) {
+                            showTikTokConfigError(data.error);
+                        }
+                    } catch (e) {
+                        showTikTokConfigError("Could not open folder picker.");
+                    } finally {
+                        tiktokBrowseFolderBtn.classList.remove("loading");
+                        tiktokBrowseFolderBtn.disabled = false;
+                    }
+                });
+
+                tiktokSaveConfigBtn.addEventListener("click", async () => {
+                    const newPath = tiktokConfigPathInput.value.trim();
+                    if (!newPath) {
+                        showTikTokConfigError("Please enter a path.");
+                        return;
+                    }
+
+                    showTikTokConfigError("");
+                    tiktokSaveConfigBtn.disabled = true;
+                    tiktokSaveConfigBtn.classList.add("loading");
+
+                    try {
+                        const res = await fetch("/set-tiktok-input-dir", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ path: newPath }),
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            tiktokConfigPanel.style.display = "none";
+                            scanTikTokDefaultFolder();
+                        } else {
+                            showTikTokConfigError(
+                                data.error || "Failed to update configuration.",
+                            );
+                        }
+                    } catch (e) {
+                        showTikTokConfigError("Network error.");
+                    } finally {
+                        tiktokSaveConfigBtn.disabled = false;
+                        tiktokSaveConfigBtn.classList.remove("loading");
+                    }
+                });
+
+                tiktokAutoScanBtn.addEventListener("click", () => {
+                    scanTikTokDefaultFolder();
+                });
+
+                tiktokDropZone.addEventListener("click", () =>
+                    tiktokFilesInput.click(),
+                );
+                tiktokFilesInput.addEventListener("change", (e) =>
+                    handleTikTokFiles(e.target.files),
+                );
+
+                tiktokDropZone.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    tiktokDropZone.classList.add("dragover");
+                });
+                tiktokDropZone.addEventListener("dragleave", () =>
+                    tiktokDropZone.classList.remove("dragover"),
+                );
+                tiktokDropZone.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    tiktokDropZone.classList.remove("dragover");
+                    handleTikTokFiles(e.dataTransfer.files);
+                });
+
+                tiktokProcessBtn.addEventListener("click", () => {
+                    processTikTokFiles();
+                });
+
+                tiktokResetBtn.addEventListener("click", () => {
+                    selectedTikTokFiles = [];
+                    tiktokFilesInput.value = "";
+                    updateTikTokPreviews();
+                    tiktokStatus.textContent = "";
+                    tiktokDropZone.style.backgroundColor = "#e0f2f1";
+                    tiktokDropZone.style.borderColor = "#80cbc4";
+                    document.getElementById(
+                        "tiktokResultContainer",
+                    ).style.display = "none";
+                    document.getElementById("tiktokTableBody").innerHTML = "";
+                    tiktokScanResults = [];
+                    document.getElementById("tiktokSelectAllCheck").checked =
+                        false;
+                    checkTikTokReady();
+                });
+
+                // --- Bulk zone wiring ---
+                tiktokBulkDropZone.addEventListener("click", () =>
+                    tiktokBulkFilesInput.click(),
+                );
+                tiktokBulkFilesInput.addEventListener("change", (e) =>
+                    handleTikTokBulkFiles(e.target.files),
+                );
+                tiktokBulkDropZone.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    tiktokBulkDropZone.classList.add("dragover");
+                });
+                tiktokBulkDropZone.addEventListener("dragleave", () =>
+                    tiktokBulkDropZone.classList.remove("dragover"),
+                );
+                tiktokBulkDropZone.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    tiktokBulkDropZone.classList.remove("dragover");
+                    handleTikTokBulkFiles(e.dataTransfer.files);
+                });
+                tiktokBulkProcessBtn.addEventListener("click", () =>
+                    processTikTokBulkFiles(),
+                );
+                tiktokBulkResetBtn.addEventListener("click", () => {
+                    selectedTikTokBulkFiles = [];
+                    tiktokBulkFilesInput.value = "";
+                    updateTikTokBulkPreviews();
+                    tiktokBulkDropZone.style.backgroundColor = "#f1f8e9";
+                    tiktokBulkDropZone.style.borderColor = "#a5d6a7";
+                    document.getElementById(
+                        "tiktokBulkResultContainer",
+                    ).style.display = "none";
+                    document.getElementById("tiktokBulkTableBody").innerHTML =
+                        "";
+                    tiktokBulkScanResults = [];
+                    document.getElementById(
+                        "tiktokBulkSelectAllCheck",
+                    ).checked = false;
+                    checkTikTokBulkReady();
+                });
+            }
+
+            function showTikTokConfigError(msg) {
+                if (msg) {
+                    tiktokConfigError.textContent = msg;
+                    tiktokConfigError.style.display = "block";
+                } else {
+                    tiktokConfigError.style.display = "none";
+                }
+            }
+
+            function handleTikTokFiles(files) {
+                if (!files || files.length === 0) return;
+                selectedTikTokFiles = selectedTikTokFiles.concat(
+                    Array.from(files),
+                );
+                updateTikTokPreviews();
+                tiktokDropZone.style.borderColor = "#00796b";
+                tiktokDropZone.style.backgroundColor = "#b2dfdb";
+                checkTikTokReady();
+            }
+
+            function updateTikTokPreviews() {
+                if (selectedTikTokFiles.length === 0) {
+                    tiktokFilesPreview.textContent = "No files selected";
+                    tiktokFilesPreview.style.color = "#666";
+                } else {
+                    tiktokFilesPreview.textContent = ` ${selectedTikTokFiles.length} files selected`;
+                    tiktokFilesPreview.style.color = "#00695c";
+                    tiktokFilesPreview.style.fontWeight = "bold";
+                }
+            }
+
+            function checkTikTokReady() {
+                tiktokProcessBtn.disabled = selectedTikTokFiles.length === 0;
+            }
+
+            async function scanTikTokDefaultFolder() {
+                try {
+                    tiktokStatus.textContent = "Scanning TikTok folder...";
+                    const res = await fetch("/scan-tiktok-default");
+                    const data = await res.json();
+
+                    if (data.configNeeded) {
+                        tiktokStatus.textContent = "";
+                        tiktokConfigPanel.style.display = "block";
+                        return;
+                    }
+
+                    if (data.results && data.results.length > 0) {
+                        tiktokStatus.textContent = `Processed ${data.results.length} TikTok pair(s).`;
+                        tiktokStatus.style.color = "green";
+                        tiktokScanResults = data.results;
+                        renderResults(
+                            tiktokScanResults,
+                            "tiktokResultContainer",
+                            "tiktokTableBody",
+                            "tiktok",
+                        );
+
+                        tiktokScanResults.forEach((result, index) => {
+                            if (result.downloaded === false) {
+                                const checkbox = document.querySelector(
+                                    `#tiktokTableBody .row-checkbox[data-index="${index}"]`,
+                                );
+                                if (checkbox) {
+                                    checkbox.checked = true;
+                                }
+                            }
+                        });
+
+                        tiktokScanInfo.style.display = "block";
+                        tiktokScanInfo.innerHTML = `<strong>Auto-Scan Complete:</strong> Found ${data.results.length} TikTok pairs in <br><code>${data.scannedDir}</code>`;
+                    } else {
+                        tiktokStatus.textContent = `No TikTok pairs found in ${data.scannedDir || "folder"}.`;
+                        tiktokStatus.style.color = "#666";
+                        tiktokScanInfo.style.display = "block";
+                        tiktokScanInfo.innerHTML = `<strong>Scan Complete:</strong> No valid pairs found in <br><code>${data.scannedDir || "folder"}</code>.`;
+                        document.getElementById(
+                            "tiktokResultContainer",
+                        ).style.display = "none";
+                    }
+                } catch (e) {
+                    console.error("TikTok auto scan failed", e);
+                    tiktokStatus.textContent = "TikTok auto-scan failed";
+                    tiktokStatus.style.color = "red";
+                }
+            }
+
+            async function processTikTokFiles() {
+                if (selectedTikTokFiles.length === 0) {
+                    return;
+                }
+
+                tiktokProcessBtn.classList.add("loading");
+                tiktokProcessBtn.disabled = true;
+                tiktokStatus.textContent = "Processing TikTok pairs...";
+                tiktokStatus.style.color = "#00796b";
+
+                document.getElementById("tiktokResultContainer").style.display =
+                    "none";
+                document.getElementById("tiktokTableBody").innerHTML = "";
+                tiktokScanResults = [];
+                document.getElementById("tiktokSelectAllCheck").checked = false;
+
+                try {
+                    const formData = new FormData();
+                    const fileDates = {};
+                    selectedTikTokFiles.forEach((file) => {
+                        formData.append("files", file);
+                        fileDates[file.name] = file.lastModified;
+                    });
+                    formData.append("fileDates", JSON.stringify(fileDates));
+
+                    const response = await fetch("/merge-tiktok-pairs", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+
+                    const data = await response.json();
+                    if (data.results && data.results.length > 0) {
+                        tiktokScanResults = data.results;
+                        renderResults(
+                            tiktokScanResults,
+                            "tiktokResultContainer",
+                            "tiktokTableBody",
+                            "tiktok",
+                        );
+
+                        tiktokStatus.textContent = `Success! Processed ${data.results.length} TikTok pairs.`;
+                        tiktokStatus.style.color = "green";
+
+                        document.getElementById(
+                            "tiktokSelectAllCheck",
+                        ).checked = true;
+                        document
+                            .getElementById("tiktokTableBody")
+                            .querySelectorAll(".row-checkbox")
+                            .forEach((cb) => (cb.checked = true));
+
+                        selectedTikTokFiles = [];
+                        tiktokFilesInput.value = "";
+                        updateTikTokPreviews();
+                        tiktokDropZone.style.backgroundColor = "#e0f2f1";
+                        tiktokDropZone.style.borderColor = "#80cbc4";
+                        checkTikTokReady();
+                    } else {
+                        tiktokStatus.textContent =
+                            "No valid TikTok pairs found.";
+                        tiktokStatus.style.color = "#666";
+                        if (data.errors && data.errors.length > 0) {
+                            alert("Errors:\n" + data.errors.join("\n"));
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                    tiktokStatus.textContent = "Error: " + err.message;
+                    tiktokStatus.style.color = "red";
+                } finally {
+                    tiktokProcessBtn.classList.remove("loading");
+                    checkTikTokReady();
+                }
+            }
+
+            function handleTikTokBulkFiles(files) {
+                if (!files || files.length === 0) return;
+                selectedTikTokBulkFiles = selectedTikTokBulkFiles.concat(
+                    Array.from(files),
+                );
+                updateTikTokBulkPreviews();
+                tiktokBulkDropZone.style.borderColor = "#2e7d32";
+                tiktokBulkDropZone.style.backgroundColor = "#dcedc8";
+                checkTikTokBulkReady();
+            }
+
+            function updateTikTokBulkPreviews() {
+                if (selectedTikTokBulkFiles.length === 0) {
+                    tiktokBulkFilesPreview.textContent = "No files selected";
+                    tiktokBulkFilesPreview.style.color = "#666";
+                } else {
+                    const slipCount = 1; // always 1 bulk slips file expected
+                    tiktokBulkFilesPreview.textContent = `✅ ${selectedTikTokBulkFiles.length} files selected`;
+                    tiktokBulkFilesPreview.style.color = "#2e7d32";
+                    tiktokBulkFilesPreview.style.fontWeight = "bold";
+                }
+            }
+
+            function checkTikTokBulkReady() {
+                tiktokBulkProcessBtn.disabled =
+                    selectedTikTokBulkFiles.length === 0;
+            }
+
+            async function processTikTokBulkFiles() {
+                if (selectedTikTokBulkFiles.length === 0) return;
+
+                tiktokBulkProcessBtn.classList.add("loading");
+                tiktokBulkProcessBtn.disabled = true;
+                tiktokStatus.textContent = "Processing TikTok bulk...";
+                tiktokStatus.style.color = "#2e7d32";
+
+                document.getElementById(
+                    "tiktokBulkResultContainer",
+                ).style.display = "none";
+                document.getElementById("tiktokBulkTableBody").innerHTML = "";
+                tiktokBulkScanResults = [];
+                document.getElementById("tiktokBulkSelectAllCheck").checked =
+                    false;
+
+                try {
+                    const formData = new FormData();
+                    const fileDates = {};
+                    selectedTikTokBulkFiles.forEach((file) => {
+                        formData.append("files", file);
+                        fileDates[file.name] = file.lastModified;
+                    });
+                    formData.append("fileDates", JSON.stringify(fileDates));
+
+                    const response = await fetch("/merge-tiktok-bulk", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+
+                    const data = await response.json();
+                    if (data.results && data.results.length > 0) {
+                        tiktokBulkScanResults = data.results;
+                        renderResults(
+                            tiktokBulkScanResults,
+                            "tiktokBulkResultContainer",
+                            "tiktokBulkTableBody",
+                            "tiktokBulk",
+                        );
+
+                        tiktokStatus.textContent = `Success! Processed ${data.results.length} TikTok bulk pairs.`;
+                        tiktokStatus.style.color = "green";
+
+                        document.getElementById(
+                            "tiktokBulkSelectAllCheck",
+                        ).checked = true;
+                        document
+                            .getElementById("tiktokBulkTableBody")
+                            .querySelectorAll(".row-checkbox")
+                            .forEach((cb) => (cb.checked = true));
+
+                        selectedTikTokBulkFiles = [];
+                        tiktokBulkFilesInput.value = "";
+                        updateTikTokBulkPreviews();
+                        tiktokBulkDropZone.style.backgroundColor = "#f1f8e9";
+                        tiktokBulkDropZone.style.borderColor = "#a5d6a7";
+                        checkTikTokBulkReady();
+
+                        if (data.errors && data.errors.length > 0) {
+                            tiktokStatus.textContent += ` (${data.errors.length} warning(s))`;
+                            console.warn(data.errors);
+                        }
+                    } else {
+                        tiktokStatus.textContent =
+                            "No valid TikTok bulk pairs found.";
+                        tiktokStatus.style.color = "#666";
+                        if (data.errors && data.errors.length > 0) {
+                            alert("Errors:\n" + data.errors.join("\n"));
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                    tiktokStatus.textContent = "Error: " + err.message;
+                    tiktokStatus.style.color = "red";
+                } finally {
+                    tiktokBulkProcessBtn.classList.remove("loading");
+                    checkTikTokBulkReady();
+                }
+            }
+
             function setupTabs() {
+                let tiktokScannedOnce = false;
                 const setActive = (tab) => {
                     if (tab === "excel") {
                         labelTab.style.display = "none";
                         excelTab.style.display = "block";
+                        tiktokTab.style.display = "none";
                         tabLabelBtn.style.opacity = "0.65";
                         tabExcelBtn.style.opacity = "1";
+                        tabTikTokBtn.style.opacity = "0.65";
+                    } else if (tab === "tiktok") {
+                        labelTab.style.display = "none";
+                        excelTab.style.display = "none";
+                        tiktokTab.style.display = "block";
+                        tabLabelBtn.style.opacity = "0.65";
+                        tabExcelBtn.style.opacity = "0.65";
+                        tabTikTokBtn.style.opacity = "1";
+
+                        if (!tiktokScannedOnce) {
+                            tiktokScannedOnce = true;
+                            scanTikTokDefaultFolder();
+                        }
                     } else {
                         labelTab.style.display = "block";
                         excelTab.style.display = "none";
+                        tiktokTab.style.display = "none";
                         tabLabelBtn.style.opacity = "1";
                         tabExcelBtn.style.opacity = "0.65";
+                        tabTikTokBtn.style.opacity = "0.65";
                     }
                 };
 
                 tabLabelBtn.addEventListener("click", () => setActive("label"));
                 tabExcelBtn.addEventListener("click", () => setActive("excel"));
+                tabTikTokBtn.addEventListener("click", () =>
+                    setActive("tiktok"),
+                );
 
                 // Default to Labels tab
                 setActive("label");

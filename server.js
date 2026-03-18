@@ -6,11 +6,13 @@ const fsPromises = require("fs").promises;
 const { exec } = require("child_process");
 const {
     processLabels,
+    processTikTokPair,
     extractLabelData,
     extractBulkLabels,
     extractBulkSlips,
     getIdsFromPdf,
     isSlip,
+    hasItemsText,
 } = require("./src/processor");
 require("dotenv").config();
 
@@ -20,13 +22,16 @@ const upload = multer({ storage: multer.memoryStorage() }); // Store files in me
 const PORT = process.env.PORT || 3000;
 // Use INPUT_DIR from .env, or default to internal 'input' folder
 let inputDir = process.env.INPUT_DIR || path.join(__dirname, "input");
+let tiktokInputDir =
+    process.env.TIKTOK_INPUT_DIR || process.env.INPUT_DIR || inputDir;
 
 console.log(`Scanning directory: ${inputDir}`);
+console.log(`Scanning TikTok directory: ${tiktokInputDir}`);
 
 // Serve static files from 'public' directory
 app.use(express.static("public"));
 
-async function updateEnvFile(newPath) {
+async function updateEnvFileValue(key, newPath) {
     const envPath = path.join(__dirname, ".env");
     let envContent = "";
     try {
@@ -35,11 +40,6 @@ async function updateEnvFile(newPath) {
         // File might not exist, create it
         envContent = "";
     }
-
-    const key = "INPUT_DIR";
-    // Escape backslashes for regex? No, newPath is replacement string.
-    // But we need to handle backslashes correctly in the file content.
-    // Actually, .env usually takes raw strings.
 
     const newLine = `${key}=${newPath}`;
     const regex = new RegExp(`^${key}=.*`, "m");
@@ -51,8 +51,6 @@ async function updateEnvFile(newPath) {
     }
 
     await fsPromises.writeFile(envPath, envContent);
-    inputDir = newPath; // Update memory
-    console.log(`Updated INPUT_DIR to: ${inputDir}`);
 }
 
 app.post("/set-input-dir", express.json(), async (req, res) => {
@@ -73,7 +71,9 @@ app.post("/set-input-dir", express.json(), async (req, res) => {
     }
 
     try {
-        await updateEnvFile(newPath);
+        await updateEnvFileValue("INPUT_DIR", newPath);
+        inputDir = newPath;
+        console.log(`Updated INPUT_DIR to: ${inputDir}`);
         res.json({ success: true, message: "Directory updated successfully" });
     } catch (err) {
         console.error("Failed to update env:", err);
@@ -84,21 +84,54 @@ app.post("/set-input-dir", express.json(), async (req, res) => {
     }
 });
 
+app.post("/set-tiktok-input-dir", express.json(), async (req, res) => {
+    const { path: newPath } = req.body;
+    if (!newPath) {
+        return res
+            .status(400)
+            .json({ success: false, error: "Path is required" });
+    }
+
+    if (!fs.existsSync(newPath)) {
+        return res.status(400).json({
+            success: false,
+            error: "Directory does not exist on the server.",
+        });
+    }
+
+    try {
+        await updateEnvFileValue("TIKTOK_INPUT_DIR", newPath);
+        tiktokInputDir = newPath;
+        console.log(`Updated TIKTOK_INPUT_DIR to: ${tiktokInputDir}`);
+        res.json({ success: true, message: "Directory updated successfully" });
+    } catch (err) {
+        console.error("Failed to update tiktok env:", err);
+        res.status(500).json({
+            success: false,
+            error: "Failed to save configuration",
+        });
+    }
+});
+
 // Helper function to check if output file exists
 // Checks for both with and without .pdf extension since downloaded files may or may not have it
 async function checkFileExists(filename) {
+    return checkFileExistsInDir(filename, inputDir);
+}
+
+async function checkFileExistsInDir(filename, directory) {
     try {
-        if (!inputDir) return false;
+        if (!directory) return false;
 
         // Check for exact filename (without extension)
-        const filePath = path.join(inputDir, filename);
+        const filePath = path.join(directory, filename);
         if (fs.existsSync(filePath)) {
             return true;
         }
 
         // Check for filename with .pdf extension
         // (Windows sometimes adds this automatically when downloading)
-        const filePathWithExt = path.join(inputDir, `${filename}.pdf`);
+        const filePathWithExt = path.join(directory, `${filename}.pdf`);
         if (fs.existsSync(filePathWithExt)) {
             return true;
         }
@@ -254,6 +287,209 @@ async function processFilePairs(fileObjects) {
     return { results, errors };
 }
 
+async function processTikTokPairs(fileObjects, sourceDir = null) {
+    const groups = new Map();
+    const results = [];
+    const errors = [];
+
+    for (const f of fileObjects) {
+        try {
+            const ids = await getIdsFromPdf(f.buffer);
+            const orderId = ids && ids.length > 0 ? ids[0] : null;
+
+            if (!orderId) {
+                errors.push(`No Order ID found in file: ${f.originalName}`);
+                continue;
+            }
+
+            if (!groups.has(orderId)) {
+                groups.set(orderId, []);
+            }
+            groups.get(orderId).push(f);
+        } catch (e) {
+            errors.push(`Failed to analyze ${f.originalName}: ${e.message}`);
+        }
+    }
+
+    for (const [orderId, files] of groups.entries()) {
+        if (files.length < 2) {
+            errors.push(
+                `Order ${orderId} has only ${files.length} file(s). Exactly 2 files are required per pair.`,
+            );
+            continue;
+        }
+
+        // Check which file contains "Items" (packing slip); shipping label goes first
+        const fileInfos = await Promise.all(
+            files.map(async (f) => ({
+                file: f,
+                isItems: await hasItemsText(f.buffer),
+            })),
+        );
+
+        fileInfos.sort((a, b) => {
+            if (a.isItems !== b.isItems) return a.isItems ? 1 : -1;
+            return a.file.originalName.localeCompare(b.file.originalName);
+        });
+
+        if (fileInfos.length > 2) {
+            errors.push(
+                `Order ${orderId} has ${fileInfos.length} files. Processing the first 2 (label first, Items last).`,
+            );
+        }
+
+        const file1 = fileInfos[0].file;
+        const file2 = fileInfos[1].file;
+        const output = await processTikTokPair(
+            file1.buffer,
+            file2.buffer,
+            orderId,
+        );
+        const maxFileDate = Math.max(
+            file1.lastModified || 0,
+            file2.lastModified || 0,
+        );
+        const fileExists = sourceDir
+            ? await checkFileExistsInDir(output.filename, sourceDir)
+            : false;
+
+        results.push({
+            filename: output.filename,
+            pdfBase64: Buffer.from(output.pdfBytes).toString("base64"),
+            metadata: output.metadata,
+            fileDate: maxFileDate,
+            downloaded: fileExists,
+        });
+    }
+
+    results.sort((a, b) => {
+        const timeA = a.fileDate || 0;
+        const timeB = b.fileDate || 0;
+        return timeB - timeA;
+    });
+
+    return { results, errors };
+}
+
+async function processTikTokBulk(fileObjects) {
+    const results = [];
+    const errors = [];
+
+    // 1. Classify: files with "Items" text are the bulk picking-slips; others are shipping labels
+    const classified = await Promise.all(
+        fileObjects.map(async (f) => ({
+            file: f,
+            isItems: await hasItemsText(f.buffer),
+        })),
+    );
+
+    const slipsFiles = classified.filter((c) => c.isItems).map((c) => c.file);
+    const labelFiles = classified.filter((c) => !c.isItems).map((c) => c.file);
+
+    if (slipsFiles.length === 0) {
+        return {
+            results: [],
+            errors: [
+                'No bulk slips file detected. Ensure the picking-slips PDF contains the word "Items".',
+            ],
+        };
+    }
+
+    if (slipsFiles.length > 1) {
+        errors.push(
+            `Warning: ${slipsFiles.length} files contain "Items". Using "${slipsFiles[0].originalName}" as the bulk slips file.`,
+        );
+    }
+
+    const bulkSlipsFile = slipsFiles[0];
+    console.log(
+        `TikTok Bulk: "${bulkSlipsFile.originalName}" as bulk slips, ${labelFiles.length} label file(s).`,
+    );
+
+    // 2. Split the bulk slips PDF into per-order slip buffers
+    const extractedSlips = await extractBulkSlips(
+        bulkSlipsFile.buffer,
+        bulkSlipsFile.originalName,
+    );
+
+    if (extractedSlips.length === 0) {
+        return {
+            results: [],
+            errors: [
+                "Could not extract individual slips. Make sure Order IDs (Order #XXXX) are present in the text.",
+            ],
+        };
+    }
+
+    // 3. Pre-scan label files for their Order IDs
+    const labelIdCache = new Map();
+    for (const label of labelFiles) {
+        try {
+            const ids = await getIdsFromPdf(label.buffer);
+            labelIdCache.set(label.originalName, ids);
+            if (ids.length > 0) {
+                console.log(
+                    `Pre-scanned ${label.originalName}: IDs ${ids.join(", ")}`,
+                );
+            }
+        } catch (e) {
+            console.warn(`Failed to scan ${label.originalName}`);
+        }
+    }
+
+    // 4. Match each slip to its shipping label and merge (label first, slip second)
+    for (const slip of extractedSlips) {
+        const orderId = slip.id;
+
+        // Filename match first
+        let matchedLabel = labelFiles.find((l) =>
+            l.originalName.includes(orderId),
+        );
+
+        // Content match fallback
+        if (!matchedLabel) {
+            for (const label of labelFiles) {
+                const ids = labelIdCache.get(label.originalName);
+                if (ids && ids.includes(orderId)) {
+                    matchedLabel = label;
+                    break;
+                }
+            }
+        }
+
+        if (!matchedLabel) {
+            errors.push(
+                `No matching shipping label found for Order ${orderId}`,
+            );
+            continue;
+        }
+
+        try {
+            const output = await processTikTokPair(
+                matchedLabel.buffer,
+                slip.buffer,
+                orderId,
+            );
+
+            results.push({
+                filename: output.filename,
+                pdfBase64: Buffer.from(output.pdfBytes).toString("base64"),
+                metadata: output.metadata,
+                fileDate: Math.max(
+                    matchedLabel.lastModified || 0,
+                    bulkSlipsFile.lastModified || 0,
+                ),
+                downloaded: false,
+            });
+        } catch (e) {
+            errors.push(`Error merging Order ${orderId}: ${e.message}`);
+        }
+    }
+
+    results.sort((a, b) => (b.fileDate || 0) - (a.fileDate || 0));
+    return { results, errors };
+}
+
 // Endpoint to scan default folder
 app.get("/scan-default", async (req, res) => {
     try {
@@ -324,6 +560,59 @@ app.get("/scan-default", async (req, res) => {
         });
     } catch (err) {
         console.error("Scan Error:", err);
+        res.status(500).send("Scan Error: " + err.message);
+    }
+});
+
+app.get("/scan-tiktok-default", async (req, res) => {
+    try {
+        if (!fs.existsSync(tiktokInputDir)) {
+            return res.json({
+                success: false,
+                configNeeded: true,
+                results: [],
+                errors: [`Directory not found: ${tiktokInputDir}`],
+            });
+        }
+
+        const files = await fsPromises.readdir(tiktokInputDir);
+        const pdfFiles = files.filter((f) => f.toLowerCase().endsWith(".pdf"));
+
+        if (pdfFiles.length === 0) {
+            return res.json({
+                success: true,
+                results: [],
+                errors: [],
+                message: `No PDF files found in ${tiktokInputDir}`,
+            });
+        }
+
+        const fileObjects = [];
+        for (const file of pdfFiles) {
+            const filePath = path.join(tiktokInputDir, file);
+            const buffer = await fsPromises.readFile(filePath);
+            const stats = await fsPromises.stat(filePath);
+
+            fileObjects.push({
+                originalName: file,
+                buffer,
+                lastModified: stats.mtimeMs,
+            });
+        }
+
+        const { results, errors } = await processTikTokPairs(
+            fileObjects,
+            tiktokInputDir,
+        );
+
+        res.json({
+            success: true,
+            results,
+            errors,
+            scannedDir: tiktokInputDir,
+        });
+    } catch (err) {
+        console.error("TikTok scan error:", err);
         res.status(500).send("Scan Error: " + err.message);
     }
 });
@@ -399,6 +688,72 @@ app.post("/analyze", upload.single("file"), async (req, res) => {
     } catch (err) {
         console.error("Analyze error:", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/merge-tiktok-pairs", upload.any(), async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).send("No files uploaded.");
+        }
+
+        const fileDates = req.body.fileDates
+            ? JSON.parse(req.body.fileDates)
+            : {};
+
+        const files = req.files.map((f) => ({
+            originalName: f.originalname,
+            buffer: f.buffer,
+            lastModified: fileDates[f.originalname] || 0,
+        }));
+
+        const { results, errors } = await processTikTokPairs(files);
+
+        if (results.length === 0 && errors.length > 0) {
+            return res
+                .status(400)
+                .send("Processing failed:\n" + errors.join("\n"));
+        }
+
+        res.json({
+            success: true,
+            results,
+            errors,
+        });
+    } catch (err) {
+        console.error("TikTok merge error:", err);
+        res.status(500).send("Server Error: " + err.message);
+    }
+});
+
+app.post("/merge-tiktok-bulk", upload.any(), async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).send("No files uploaded.");
+        }
+
+        const fileDates = req.body.fileDates
+            ? JSON.parse(req.body.fileDates)
+            : {};
+
+        const files = req.files.map((f) => ({
+            originalName: f.originalname,
+            buffer: f.buffer,
+            lastModified: fileDates[f.originalname] || 0,
+        }));
+
+        const { results, errors } = await processTikTokBulk(files);
+
+        if (results.length === 0 && errors.length > 0) {
+            return res
+                .status(400)
+                .send("Processing failed:\n" + errors.join("\n"));
+        }
+
+        res.json({ success: true, results, errors });
+    } catch (err) {
+        console.error("TikTok bulk error:", err);
+        res.status(500).send("Server Error: " + err.message);
     }
 });
 
