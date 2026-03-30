@@ -298,6 +298,13 @@
                         >
                             Copy Table Data
                         </button>
+                        <button
+                            id="autoCopySortedBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Copy Sorted &#x2191; Order ID
+                        </button>
                     </div>
 
                     <table class="data-table">
@@ -551,6 +558,13 @@
                         >
                             Copy Table Data
                         </button>
+                        <button
+                            id="manualCopySortedBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Copy Sorted &#x2191; Order ID
+                        </button>
                     </div>
 
                     <table class="data-table">
@@ -620,6 +634,13 @@
                             style="background-color: #2196f3"
                         >
                             Copy Table Data
+                        </button>
+                        <button
+                            id="bulkCopySortedBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Copy Sorted &#x2191; Order ID
                         </button>
                     </div>
 
@@ -959,6 +980,13 @@
                         >
                             Copy Table Data
                         </button>
+                        <button
+                            id="tiktokCopySortedBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Copy Sorted &#x2191; Order ID
+                        </button>
                     </div>
 
                     <table class="data-table">
@@ -1102,6 +1130,13 @@
                         >
                             Copy Table Data
                         </button>
+                        <button
+                            id="tiktokBulkCopySortedBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Copy Sorted &#x2191; Order ID
+                        </button>
                     </div>
                     <table class="data-table">
                         <thead>
@@ -1243,6 +1278,13 @@
                             style="background-color: #7e57c2"
                         >
                             Copy Table Data
+                        </button>
+                        <button
+                            id="shopifyCopySortedBtn"
+                            class="download-btn"
+                            style="background-color: #6d4c41"
+                        >
+                            Copy Sorted &#x2191; Order ID
                         </button>
                     </div>
                     <table class="data-table">
@@ -1839,6 +1881,36 @@
                             alert("Please select items to copy.");
                             return;
                         }
+                        handleCopy(checkboxes);
+                    });
+                }
+
+                // Copy Sorted by Order ID ascending
+                const copySortedBtn = document.getElementById(
+                    `${prefix}CopySortedBtn`,
+                );
+                if (copySortedBtn) {
+                    copySortedBtn.addEventListener("click", () => {
+                        const checkboxes = Array.from(
+                            tbody.querySelectorAll(".row-checkbox:checked"),
+                        );
+                        if (checkboxes.length === 0) {
+                            alert("Please select items to copy.");
+                            return;
+                        }
+                        // Sort by Order ID (column index 2) ascending
+                        checkboxes.sort((a, b) => {
+                            const aId = a.closest("tr").cells[2]
+                                ? a.closest("tr").cells[2].textContent.trim()
+                                : "";
+                            const bId = b.closest("tr").cells[2]
+                                ? b.closest("tr").cells[2].textContent.trim()
+                                : "";
+                            return aId.localeCompare(bId, undefined, {
+                                numeric: true,
+                                sensitivity: "base",
+                            });
+                        });
                         handleCopy(checkboxes);
                     });
                 }
