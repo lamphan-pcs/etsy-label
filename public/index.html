@@ -1825,8 +1825,18 @@
                         }
                     });
 
-                    // 2. Sort by Order ID ascending then copy
+                    // 2. Sort by Label Created date, then by Order ID within the same date
                     checkboxes.sort((a, b) => {
+                        const aDate = a.closest("tr").cells[1]
+                            ? a.closest("tr").cells[1].textContent.trim()
+                            : "";
+                        const bDate = b.closest("tr").cells[1]
+                            ? b.closest("tr").cells[1].textContent.trim()
+                            : "";
+                        const dateCmp = aDate.localeCompare(bDate, undefined, {
+                            sensitivity: "base",
+                        });
+                        if (dateCmp !== 0) return dateCmp;
                         const aId = a.closest("tr").cells[2]
                             ? a.closest("tr").cells[2].textContent.trim()
                             : "";
@@ -1851,8 +1861,22 @@
                             alert("Please select items to copy.");
                             return;
                         }
-                        // Sort by Order ID (column index 2) ascending
+                        // Sort by Label Created date, then by Order ID within the same date
                         checkboxes.sort((a, b) => {
+                            const aDate = a.closest("tr").cells[1]
+                                ? a.closest("tr").cells[1].textContent.trim()
+                                : "";
+                            const bDate = b.closest("tr").cells[1]
+                                ? b.closest("tr").cells[1].textContent.trim()
+                                : "";
+                            const dateCmp = aDate.localeCompare(
+                                bDate,
+                                undefined,
+                                {
+                                    sensitivity: "base",
+                                },
+                            );
+                            if (dateCmp !== 0) return dateCmp;
                             const aId = a.closest("tr").cells[2]
                                 ? a.closest("tr").cells[2].textContent.trim()
                                 : "";
