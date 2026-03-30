@@ -1793,8 +1793,8 @@
                 };
 
                 downloadBtn.addEventListener("click", () => {
-                    const checkboxes = tbody.querySelectorAll(
-                        ".row-checkbox:checked",
+                    const checkboxes = Array.from(
+                        tbody.querySelectorAll(".row-checkbox:checked"),
                     );
                     if (checkboxes.length === 0) {
                         alert("Please select items to download & copy.");
@@ -1825,7 +1825,19 @@
                         }
                     });
 
-                    // 2. Copy
+                    // 2. Sort by Order ID ascending then copy
+                    checkboxes.sort((a, b) => {
+                        const aId = a.closest("tr").cells[2]
+                            ? a.closest("tr").cells[2].textContent.trim()
+                            : "";
+                        const bId = b.closest("tr").cells[2]
+                            ? b.closest("tr").cells[2].textContent.trim()
+                            : "";
+                        return aId.localeCompare(bId, undefined, {
+                            numeric: true,
+                            sensitivity: "base",
+                        });
+                    });
                     handleCopy(checkboxes);
                 });
 
