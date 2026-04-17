@@ -160,6 +160,90 @@
                 border-radius: 8px;
                 text-align: center;
             }
+            .result-container {
+                margin-top: 2rem;
+                overflow-x: auto;
+            }
+            .column-settings-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.4rem;
+                background: #1976d2;
+                color: #fff;
+                border: none;
+                padding: 0.5rem 0.8rem;
+                border-radius: 6px;
+                cursor: pointer;
+                margin-bottom: 0.75rem;
+            }
+            .column-settings-btn:hover {
+                background: #1565c0;
+            }
+            .column-settings-popup {
+                display: none;
+                position: absolute;
+                z-index: 2000;
+                min-width: 280px;
+                max-width: 340px;
+                max-height: calc(100vh - 3rem);
+                overflow: auto;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+                padding: 0.75rem;
+            }
+            .column-settings-popup.open {
+                display: block;
+            }
+            .column-settings-popup .settings-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 1rem;
+                margin-bottom: 0.75rem;
+            }
+            .column-settings-popup .settings-header button {
+                background: #1976d2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 0.4rem 0.75rem;
+                cursor: pointer;
+            }
+            .column-settings-popup .settings-header button:hover {
+                background: #1565c0;
+            }
+            .column-settings-popup .column-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .column-settings-popup .column-list li {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.55rem 0.75rem;
+                background: #fafafa;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                cursor: grab;
+            }
+            .column-settings-popup .column-list li .drag-handle {
+                cursor: grab;
+                font-size: 1rem;
+                user-select: none;
+            }
+            .column-settings-popup .column-list li input[type="checkbox"] {
+                cursor: pointer;
+            }
+            .hidden-column {
+                display: none !important;
+            }
             .config-bar {
                 margin: 1rem 0;
                 padding: 0.5rem;
@@ -1258,6 +1342,7 @@
             </div>
         </div>
 
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
         <script src="/jszip.min.js"></script>
         <script>
@@ -1426,6 +1511,7 @@
                 setupActionListeners("tiktok", () => tiktokScanResults);
                 setupActionListeners("tiktokBulk", () => tiktokBulkScanResults);
                 setupActionListeners("shopify", () => shopifyScanResults);
+                setupTableColumnManagers();
                 setupTabs();
                 setupExcelMerge();
                 setupTikTokTab();
@@ -1754,16 +1840,23 @@
 
                 // Helper to copy rows
                 const handleCopy = (checkboxes) => {
+                    const table = tbody.closest("table");
+                    const headerCells = Array.from(
+                        table.querySelectorAll("thead th"),
+                    ).slice(1);
                     const rows = [];
                     checkboxes.forEach((cb) => {
                         const row = cb.closest("tr");
-                        // Skip first cell (checkbox)
-                        // Filter out cells with 'no-copy' class
                         const rowText = Array.from(row.cells)
                             .slice(1)
-                            .filter(
-                                (cell) => !cell.classList.contains("no-copy"),
-                            )
+                            .filter((cell, idx) => {
+                                const header = headerCells[idx];
+                                return (
+                                    header &&
+                                    !cell.classList.contains("no-copy") &&
+                                    header.style.display !== "none"
+                                );
+                            })
                             .map((c) => c.textContent)
                             .join("\t");
                         rows.push(rowText);
@@ -1798,7 +1891,12 @@
                             if (orderId) {
                                 saveDownloadRecord(orderId);
                                 // Update the download date cell in the table
-                                const dateCell = cb.closest("tr").cells[11]; // Download Date column
+                                const downloadIndex = getColumnIndexByKey(
+                                    prefix,
+                                    "labelDownloadDateTime",
+                                );
+                                const dateCell =
+                                    cb.closest("tr").cells[downloadIndex];
                                 if (dateCell) {
                                     dateCell.textContent =
                                         getDownloadRecord(orderId);
@@ -1808,22 +1906,35 @@
                     });
 
                     // 2. Sort by Label Created date, then by Order ID within the same date
+                    const createdIndex = getColumnIndexByKey(
+                        prefix,
+                        "labelCreated",
+                    );
+                    const orderIdIndex = getColumnIndexByKey(prefix, "orderId");
                     checkboxes.sort((a, b) => {
-                        const aDate = a.closest("tr").cells[1]
-                            ? a.closest("tr").cells[1].textContent.trim()
+                        const aDate = a.closest("tr").cells[createdIndex]
+                            ? a
+                                  .closest("tr")
+                                  .cells[createdIndex].textContent.trim()
                             : "";
-                        const bDate = b.closest("tr").cells[1]
-                            ? b.closest("tr").cells[1].textContent.trim()
+                        const bDate = b.closest("tr").cells[createdIndex]
+                            ? b
+                                  .closest("tr")
+                                  .cells[createdIndex].textContent.trim()
                             : "";
                         const dateCmp = aDate.localeCompare(bDate, undefined, {
                             sensitivity: "base",
                         });
                         if (dateCmp !== 0) return dateCmp;
-                        const aId = a.closest("tr").cells[2]
-                            ? a.closest("tr").cells[2].textContent.trim()
+                        const aId = a.closest("tr").cells[orderIdIndex]
+                            ? a
+                                  .closest("tr")
+                                  .cells[orderIdIndex].textContent.trim()
                             : "";
-                        const bId = b.closest("tr").cells[2]
-                            ? b.closest("tr").cells[2].textContent.trim()
+                        const bId = b.closest("tr").cells[orderIdIndex]
+                            ? b
+                                  .closest("tr")
+                                  .cells[orderIdIndex].textContent.trim()
                             : "";
                         return aId.localeCompare(bId, undefined, {
                             numeric: true,
@@ -1843,13 +1954,25 @@
                             alert("Please select items to copy.");
                             return;
                         }
+                        const createdIndex = getColumnIndexByKey(
+                            prefix,
+                            "labelCreated",
+                        );
+                        const orderIdIndex = getColumnIndexByKey(
+                            prefix,
+                            "orderId",
+                        );
                         // Sort by Label Created date, then by Order ID within the same date
                         checkboxes.sort((a, b) => {
-                            const aDate = a.closest("tr").cells[1]
-                                ? a.closest("tr").cells[1].textContent.trim()
+                            const aDate = a.closest("tr").cells[createdIndex]
+                                ? a
+                                      .closest("tr")
+                                      .cells[createdIndex].textContent.trim()
                                 : "";
-                            const bDate = b.closest("tr").cells[1]
-                                ? b.closest("tr").cells[1].textContent.trim()
+                            const bDate = b.closest("tr").cells[createdIndex]
+                                ? b
+                                      .closest("tr")
+                                      .cells[createdIndex].textContent.trim()
                                 : "";
                             const dateCmp = aDate.localeCompare(
                                 bDate,
@@ -1859,11 +1982,15 @@
                                 },
                             );
                             if (dateCmp !== 0) return dateCmp;
-                            const aId = a.closest("tr").cells[2]
-                                ? a.closest("tr").cells[2].textContent.trim()
+                            const aId = a.closest("tr").cells[orderIdIndex]
+                                ? a
+                                      .closest("tr")
+                                      .cells[orderIdIndex].textContent.trim()
                                 : "";
-                            const bId = b.closest("tr").cells[2]
-                                ? b.closest("tr").cells[2].textContent.trim()
+                            const bId = b.closest("tr").cells[orderIdIndex]
+                                ? b
+                                      .closest("tr")
+                                      .cells[orderIdIndex].textContent.trim()
                                 : "";
                             return aId.localeCompare(bId, undefined, {
                                 numeric: true,
@@ -1898,6 +2025,10 @@
                         await downloadSelectedAsZip(items);
 
                         // Record downloads
+                        const downloadIndex = getColumnIndexByKey(
+                            prefix,
+                            "labelDownloadDateTime",
+                        );
                         items.forEach((result) => {
                             const meta = result.metadata || {};
                             const orderId = meta.orderId || meta.id;
@@ -1914,7 +2045,9 @@
                                             orderId
                                     ) {
                                         const dateCell =
-                                            cb.closest("tr").cells[11];
+                                            cb.closest("tr").cells[
+                                                downloadIndex
+                                            ];
                                         if (dateCell)
                                             dateCell.textContent =
                                                 getDownloadRecord(orderId);
@@ -1924,6 +2057,309 @@
                         });
                     });
                 }
+            }
+
+            const TABLE_COLUMN_DEFINITIONS = [
+                { key: "labelCreated", label: "Label Created" },
+                { key: "orderId", label: "Order ID" },
+                { key: "customerName", label: "Customer Name" },
+                { key: "mailAccount", label: "Mail/ Account" },
+                { key: "shippingLabel", label: "Shipping Label" },
+                { key: "orderFrom", label: "Order from" },
+                { key: "platform", label: "Platform" },
+                {
+                    key: "labelDownloadDateTime",
+                    label: "Label/Order Download Date",
+                    noCopy: true,
+                },
+                { key: "isDownloaded", label: "Downloaded", noCopy: true },
+            ];
+
+            const TABLE_PREFIXES = [
+                "auto",
+                "manual",
+                "bulk",
+                "tiktok",
+                "tiktokBulk",
+                "shopify",
+            ];
+
+            const tableColumnState = {};
+
+            function getTableByPrefix(prefix) {
+                const tbody = document.getElementById(`${prefix}TableBody`);
+                return tbody ? tbody.closest("table") : null;
+            }
+
+            function loadColumnState(prefix) {
+                try {
+                    const raw = localStorage.getItem(
+                        `tableColumnState_${prefix}`,
+                    );
+                    if (!raw) return null;
+                    const parsed = JSON.parse(raw);
+                    if (
+                        !parsed ||
+                        !Array.isArray(parsed.order) ||
+                        typeof parsed.visibility !== "object"
+                    ) {
+                        return null;
+                    }
+                    return parsed;
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function saveColumnState(prefix) {
+                const state = tableColumnState[prefix];
+                if (!state) return;
+                localStorage.setItem(
+                    `tableColumnState_${prefix}`,
+                    JSON.stringify(state),
+                );
+            }
+
+            function getColumnIndexByKey(prefix, key) {
+                const table = getTableByPrefix(prefix);
+                if (!table) return -1;
+                const headerRow = table.querySelector("thead tr");
+                if (!headerRow) return -1;
+                const headers = Array.from(headerRow.children);
+                const th = headers.find((cell) => cell.dataset.colKey === key);
+                return th ? headers.indexOf(th) : -1;
+            }
+
+            function applyColumnOrder(prefix) {
+                const table = getTableByPrefix(prefix);
+                if (!table || !tableColumnState[prefix]) return;
+                const desiredOrder = tableColumnState[prefix].order;
+                const headerRow = table.querySelector("thead tr");
+                const currentHeaders = Array.from(headerRow.children).slice(1);
+                const currentIndexMap = currentHeaders.reduce(
+                    (map, th, index) => {
+                        if (th.dataset.colKey)
+                            map[th.dataset.colKey] = index + 1;
+                        return map;
+                    },
+                    {},
+                );
+
+                desiredOrder.forEach((key) => {
+                    const header = currentHeaders.find(
+                        (th) => th.dataset.colKey === key,
+                    );
+                    if (header) headerRow.appendChild(header);
+                });
+
+                table.querySelectorAll("tbody tr").forEach((tr) => {
+                    const cells = Array.from(tr.children);
+                    const orderedCells = [cells[0]];
+                    desiredOrder.forEach((key) => {
+                        const currentIndex = currentIndexMap[key];
+                        if (currentIndex != null && cells[currentIndex]) {
+                            orderedCells.push(cells[currentIndex]);
+                        }
+                    });
+                    orderedCells.forEach((cell) => tr.appendChild(cell));
+                });
+            }
+
+            function applyColumnVisibility(prefix) {
+                const table = getTableByPrefix(prefix);
+                if (!table || !tableColumnState[prefix]) return;
+                const headerCells = Array.from(
+                    table.querySelectorAll("thead th"),
+                ).slice(1);
+                headerCells.forEach((th, idx) => {
+                    const visible =
+                        tableColumnState[prefix].visibility[th.dataset.colKey];
+                    th.style.display = visible ? "" : "none";
+                });
+                table.querySelectorAll("tbody tr").forEach((tr) => {
+                    const cells = Array.from(tr.children).slice(1);
+                    cells.forEach((cell, idx) => {
+                        const header = headerCells[idx];
+                        if (header) {
+                            cell.style.display = header.style.display;
+                        }
+                    });
+                });
+            }
+
+            function updateColumnControlList(prefix) {
+                const controlList = document.getElementById(
+                    `${prefix}ColumnList`,
+                );
+                if (!controlList) return;
+                const orderedKeys = tableColumnState[prefix].order;
+                orderedKeys.forEach((key) => {
+                    const item = controlList.querySelector(
+                        `li[data-col-key="${key}"]`,
+                    );
+                    if (item) controlList.appendChild(item);
+                });
+            }
+
+            function createColumnManager(prefix) {
+                const table = getTableByPrefix(prefix);
+                if (!table) return;
+                const headerRow = table.querySelector("thead tr");
+                if (!headerRow) return;
+                const container = table.closest(".result-container");
+                if (!container) return;
+
+                const savedState = loadColumnState(prefix);
+                const initialOrder = TABLE_COLUMN_DEFINITIONS.map(
+                    (col) => col.key,
+                );
+                const visibility = TABLE_COLUMN_DEFINITIONS.reduce(
+                    (acc, col) => {
+                        acc[col.key] = true;
+                        return acc;
+                    },
+                    {},
+                );
+                const order =
+                    savedState?.order.filter((key) =>
+                        initialOrder.includes(key),
+                    ) || [];
+                const orderedState = [...new Set([...order, ...initialOrder])];
+                tableColumnState[prefix] = {
+                    order: orderedState,
+                    visibility: {
+                        ...visibility,
+                        ...(savedState?.visibility || {}),
+                    },
+                };
+
+                Array.from(headerRow.children)
+                    .slice(1)
+                    .forEach((th) => {
+                        const label = th.textContent.trim();
+                        const definition = TABLE_COLUMN_DEFINITIONS.find(
+                            (col) => col.label === label,
+                        );
+                        if (definition) {
+                            th.dataset.colKey = definition.key;
+                            th.dataset.colLabel = definition.label;
+                        }
+                    });
+
+                const settingsBtn = document.createElement("button");
+                settingsBtn.type = "button";
+                settingsBtn.className = "column-settings-btn";
+                settingsBtn.textContent = "Columns";
+                container.insertBefore(settingsBtn, table);
+
+                const settingsEl = document.createElement("div");
+                settingsEl.className = "column-settings-popup";
+                settingsEl.id = `${prefix}ColumnSettingsPopup`;
+                settingsEl.innerHTML = `
+                    <div class="settings-header">
+                        <strong>Column visibility / order</strong>
+                        <button type="button" class="reset-columns">Reset</button>
+                    </div>
+                    <ul class="column-list" id="${prefix}ColumnList"></ul>
+                `;
+                document.body.appendChild(settingsEl);
+
+                const columnList = settingsEl.querySelector(".column-list");
+                TABLE_COLUMN_DEFINITIONS.forEach((column) => {
+                    const listItem = document.createElement("li");
+                    listItem.dataset.colKey = column.key;
+                    listItem.innerHTML = `
+                        <span class="drag-handle" title="Drag to reorder">☰</span>
+                        <label>
+                            <input type="checkbox" /> ${column.label}
+                        </label>
+                    `;
+                    const checkbox = listItem.querySelector("input");
+                    checkbox.checked =
+                        tableColumnState[prefix].visibility[column.key];
+                    checkbox.addEventListener("change", (event) => {
+                        tableColumnState[prefix].visibility[column.key] =
+                            event.target.checked;
+                        applyColumnVisibility(prefix);
+                        saveColumnState(prefix);
+                    });
+                    columnList.appendChild(listItem);
+                });
+                updateColumnControlList(prefix);
+
+                settingsEl
+                    .querySelector(".reset-columns")
+                    .addEventListener("click", () => {
+                        tableColumnState[prefix].order = [...initialOrder];
+                        TABLE_COLUMN_DEFINITIONS.forEach((column) => {
+                            tableColumnState[prefix].visibility[column.key] =
+                                true;
+                            const item = columnList.querySelector(
+                                `li[data-col-key="${column.key}"]`,
+                            );
+                            if (item)
+                                item.querySelector("input").checked = true;
+                        });
+                        updateColumnControlList(prefix);
+                        applyColumnOrder(prefix);
+                        applyColumnVisibility(prefix);
+                        saveColumnState(prefix);
+                    });
+
+                const popup = settingsEl;
+                new Sortable(columnList, {
+                    animation: 150,
+                    handle: ".drag-handle",
+                    onEnd: () => {
+                        tableColumnState[prefix].order = Array.from(
+                            columnList.children,
+                        ).map((item) => item.dataset.colKey);
+                        applyColumnOrder(prefix);
+                        applyColumnVisibility(prefix);
+                        saveColumnState(prefix);
+                    },
+                });
+
+                function positionPopup() {
+                    popup.classList.add("open");
+                    const rect = settingsBtn.getBoundingClientRect();
+                    popup.style.top = `${rect.bottom + window.scrollY + 8}px`;
+                    const left = rect.left + window.scrollX;
+                    const rightEdge = left + popup.offsetWidth;
+                    if (rightEdge > window.innerWidth - 8) {
+                        popup.style.left = `${Math.max(8, window.innerWidth - popup.offsetWidth - 8)}px`;
+                    } else {
+                        popup.style.left = `${left}px`;
+                    }
+                    if (
+                        rect.bottom + popup.offsetHeight + 16 >
+                        window.innerHeight + window.scrollY
+                    ) {
+                        popup.style.top = `${Math.max(8, rect.top + window.scrollY - popup.offsetHeight - 8)}px`;
+                    }
+                }
+
+                settingsBtn.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    if (popup.classList.contains("open")) {
+                        popup.classList.remove("open");
+                    } else {
+                        positionPopup();
+                    }
+                });
+
+                document.addEventListener("click", (event) => {
+                    if (
+                        !popup.contains(event.target) &&
+                        event.target !== settingsBtn
+                    ) {
+                        popup.classList.remove("open");
+                    }
+                });
+            }
+
+            function setupTableColumnManagers() {
+                TABLE_PREFIXES.forEach(createColumnManager);
             }
 
             async function processFiles() {
@@ -2154,6 +2590,12 @@
                         const targetBodyId = isBulk
                             ? "bulkTableBody"
                             : "manualTableBody";
+                        const targetTable = document
+                            .getElementById(targetBodyId)
+                            .closest("table");
+                        const targetHeaders = Array.from(
+                            targetTable.querySelectorAll("thead th"),
+                        ).slice(1);
                         const allRowsCopy = [];
                         document
                             .querySelectorAll(`#${targetBodyId} tr`)
@@ -2161,12 +2603,16 @@
                                 allRowsCopy.push(
                                     Array.from(tr.cells)
                                         .slice(1)
-                                        .filter(
-                                            (cell) =>
+                                        .filter((cell, idx) => {
+                                            const header = targetHeaders[idx];
+                                            return (
+                                                header &&
                                                 !cell.classList.contains(
                                                     "no-copy",
-                                                ),
-                                        )
+                                                ) &&
+                                                header.style.display !== "none"
+                                            );
+                                        })
                                         .map((c) => c.textContent)
                                         .join("\t"),
                                 );
@@ -2250,13 +2696,10 @@
                 tbody.innerHTML = "";
 
                 results.forEach((result, index) => {
-                    const rowData = addTableRow(
-                        result, // Pass the full result object
-                        index,
-                        tbody,
-                        type,
-                    );
+                    addTableRow(result, index, tbody, type);
                 });
+                applyColumnOrder(type);
+                applyColumnVisibility(type);
             }
 
             function downloadPdf(base64Data, filename) {
