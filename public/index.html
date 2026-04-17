@@ -376,11 +376,18 @@
                             Download ZIP
                         </button>
                         <button
+                            id="autoCopyInitialBtn"
+                            class="download-btn"
+                            style="background-color: #00838f"
+                        >
+                            Copy Data (Default)
+                        </button>
+                        <button
                             id="autoCopyDataOnlyBtn"
                             class="download-btn"
                             style="background-color: #2196f3"
                         >
-                            Copy Table Data
+                            Copy Current View
                         </button>
                     </div>
 
@@ -626,11 +633,18 @@
                             Download ZIP
                         </button>
                         <button
+                            id="manualCopyInitialBtn"
+                            class="download-btn"
+                            style="background-color: #00838f"
+                        >
+                            Copy Data (Default)
+                        </button>
+                        <button
                             id="manualCopyDataOnlyBtn"
                             class="download-btn"
                             style="background-color: #2196f3"
                         >
-                            Copy Table Data
+                            Copy Current View
                         </button>
                     </div>
 
@@ -693,11 +707,18 @@
                             Download ZIP
                         </button>
                         <button
+                            id="bulkCopyInitialBtn"
+                            class="download-btn"
+                            style="background-color: #00838f"
+                        >
+                            Copy Data (Default)
+                        </button>
+                        <button
                             id="bulkCopyDataOnlyBtn"
                             class="download-btn"
                             style="background-color: #2196f3"
                         >
-                            Copy Table Data
+                            Copy Current View
                         </button>
                     </div>
 
@@ -1028,11 +1049,18 @@
                             Download ZIP
                         </button>
                         <button
+                            id="tiktokCopyInitialBtn"
+                            class="download-btn"
+                            style="background-color: #00796b"
+                        >
+                            Copy Data (Default)
+                        </button>
+                        <button
                             id="tiktokCopyDataOnlyBtn"
                             class="download-btn"
                             style="background-color: #26a69a"
                         >
-                            Copy Table Data
+                            Copy Current View
                         </button>
                     </div>
 
@@ -1168,11 +1196,18 @@
                             Download ZIP
                         </button>
                         <button
+                            id="tiktokBulkCopyInitialBtn"
+                            class="download-btn"
+                            style="background-color: #2e7d32"
+                        >
+                            Copy Data (Default)
+                        </button>
+                        <button
                             id="tiktokBulkCopyDataOnlyBtn"
                             class="download-btn"
                             style="background-color: #4caf50"
                         >
-                            Copy Table Data
+                            Copy Current View
                         </button>
                     </div>
                     <table class="data-table">
@@ -1307,11 +1342,18 @@
                             Download ZIP
                         </button>
                         <button
+                            id="shopifyCopyInitialBtn"
+                            class="download-btn"
+                            style="background-color: #512da8"
+                        >
+                            Copy Data (Default)
+                        </button>
+                        <button
                             id="shopifyCopyDataOnlyBtn"
                             class="download-btn"
                             style="background-color: #7e57c2"
                         >
-                            Copy Table Data
+                            Copy Current View
                         </button>
                     </div>
                     <table class="data-table">
@@ -1827,6 +1869,9 @@
                 const copyDataBtn = document.getElementById(
                     `${prefix}CopyDataOnlyBtn`,
                 );
+                const copyInitialBtn = document.getElementById(
+                    `${prefix}CopyInitialBtn`,
+                );
                 const tbody = document.getElementById(`${prefix}TableBody`);
 
                 if (!selectAll || !downloadBtn) return;
@@ -1838,27 +1883,82 @@
                     checkboxes.forEach((cb) => (cb.checked = isChecked));
                 });
 
+                const sortSelectedRows = (checkboxes) => {
+                    const createdIndex = getColumnIndexByKey(
+                        prefix,
+                        "labelCreated",
+                    );
+                    const orderIdIndex = getColumnIndexByKey(prefix, "orderId");
+                    checkboxes.sort((a, b) => {
+                        const aDate = a.closest("tr").cells[createdIndex]
+                            ? a
+                                  .closest("tr")
+                                  .cells[createdIndex].textContent.trim()
+                            : "";
+                        const bDate = b.closest("tr").cells[createdIndex]
+                            ? b
+                                  .closest("tr")
+                                  .cells[createdIndex].textContent.trim()
+                            : "";
+                        const dateCmp = aDate.localeCompare(bDate, undefined, {
+                            sensitivity: "base",
+                        });
+                        if (dateCmp !== 0) return dateCmp;
+                        const aId = a.closest("tr").cells[orderIdIndex]
+                            ? a
+                                  .closest("tr")
+                                  .cells[orderIdIndex].textContent.trim()
+                            : "";
+                        const bId = b.closest("tr").cells[orderIdIndex]
+                            ? b
+                                  .closest("tr")
+                                  .cells[orderIdIndex].textContent.trim()
+                            : "";
+                        return aId.localeCompare(bId, undefined, {
+                            numeric: true,
+                            sensitivity: "base",
+                        });
+                    });
+                };
+
                 // Helper to copy rows
-                const handleCopy = (checkboxes) => {
+                const handleCopy = (checkboxes, mode = "current") => {
                     const table = tbody.closest("table");
                     const headerCells = Array.from(
                         table.querySelectorAll("thead th"),
                     ).slice(1);
+                    const initialCopyKeys = TABLE_COLUMN_DEFINITIONS.filter(
+                        (col) => !col.noCopy,
+                    ).map((col) => col.key);
                     const rows = [];
                     checkboxes.forEach((cb) => {
                         const row = cb.closest("tr");
-                        const rowText = Array.from(row.cells)
-                            .slice(1)
-                            .filter((cell, idx) => {
-                                const header = headerCells[idx];
-                                return (
-                                    header &&
-                                    !cell.classList.contains("no-copy") &&
-                                    header.style.display !== "none"
-                                );
-                            })
-                            .map((c) => c.textContent)
-                            .join("\t");
+                        let rowText;
+                        if (mode === "initial") {
+                            rowText = initialCopyKeys
+                                .map((key) => {
+                                    const cellIndex = getColumnIndexByKey(
+                                        prefix,
+                                        key,
+                                    );
+                                    const cell = row.cells[cellIndex];
+                                    return cell ? cell.textContent : "";
+                                })
+                                .join("\t");
+                        } else {
+                            rowText = Array.from(row.cells)
+                                .slice(1)
+                                .filter((cell, idx) => {
+                                    const header = headerCells[idx];
+                                    return (
+                                        header &&
+                                        !cell.classList.contains("no-copy") &&
+                                        header.style.display !== "none"
+                                    );
+                                })
+                                .map((c) => c.textContent)
+                                .join("\t");
+                        }
                         rows.push(rowText);
                     });
 
@@ -1906,42 +2006,8 @@
                     });
 
                     // 2. Sort by Label Created date, then by Order ID within the same date
-                    const createdIndex = getColumnIndexByKey(
-                        prefix,
-                        "labelCreated",
-                    );
-                    const orderIdIndex = getColumnIndexByKey(prefix, "orderId");
-                    checkboxes.sort((a, b) => {
-                        const aDate = a.closest("tr").cells[createdIndex]
-                            ? a
-                                  .closest("tr")
-                                  .cells[createdIndex].textContent.trim()
-                            : "";
-                        const bDate = b.closest("tr").cells[createdIndex]
-                            ? b
-                                  .closest("tr")
-                                  .cells[createdIndex].textContent.trim()
-                            : "";
-                        const dateCmp = aDate.localeCompare(bDate, undefined, {
-                            sensitivity: "base",
-                        });
-                        if (dateCmp !== 0) return dateCmp;
-                        const aId = a.closest("tr").cells[orderIdIndex]
-                            ? a
-                                  .closest("tr")
-                                  .cells[orderIdIndex].textContent.trim()
-                            : "";
-                        const bId = b.closest("tr").cells[orderIdIndex]
-                            ? b
-                                  .closest("tr")
-                                  .cells[orderIdIndex].textContent.trim()
-                            : "";
-                        return aId.localeCompare(bId, undefined, {
-                            numeric: true,
-                            sensitivity: "base",
-                        });
-                    });
-                    handleCopy(checkboxes);
+                    sortSelectedRows(checkboxes);
+                    handleCopy(checkboxes, "initial");
                 });
 
                 // New Copy Data Only Button
@@ -1954,50 +2020,23 @@
                             alert("Please select items to copy.");
                             return;
                         }
-                        const createdIndex = getColumnIndexByKey(
-                            prefix,
-                            "labelCreated",
-                        );
-                        const orderIdIndex = getColumnIndexByKey(
-                            prefix,
-                            "orderId",
-                        );
-                        // Sort by Label Created date, then by Order ID within the same date
-                        checkboxes.sort((a, b) => {
-                            const aDate = a.closest("tr").cells[createdIndex]
-                                ? a
-                                      .closest("tr")
-                                      .cells[createdIndex].textContent.trim()
-                                : "";
-                            const bDate = b.closest("tr").cells[createdIndex]
-                                ? b
-                                      .closest("tr")
-                                      .cells[createdIndex].textContent.trim()
-                                : "";
-                            const dateCmp = aDate.localeCompare(
-                                bDate,
-                                undefined,
-                                {
-                                    sensitivity: "base",
-                                },
-                            );
-                            if (dateCmp !== 0) return dateCmp;
-                            const aId = a.closest("tr").cells[orderIdIndex]
-                                ? a
-                                      .closest("tr")
-                                      .cells[orderIdIndex].textContent.trim()
-                                : "";
-                            const bId = b.closest("tr").cells[orderIdIndex]
-                                ? b
-                                      .closest("tr")
-                                      .cells[orderIdIndex].textContent.trim()
-                                : "";
-                            return aId.localeCompare(bId, undefined, {
-                                numeric: true,
-                                sensitivity: "base",
-                            });
-                        });
+                        sortSelectedRows(checkboxes);
                         handleCopy(checkboxes);
+                    });
+                }
+
+                // Copy all columns in the initial configured order (ignores current visibility/reorder)
+                if (copyInitialBtn) {
+                    copyInitialBtn.addEventListener("click", () => {
+                        const checkboxes = Array.from(
+                            tbody.querySelectorAll(".row-checkbox:checked"),
+                        );
+                        if (checkboxes.length === 0) {
+                            alert("Please select items to copy.");
+                            return;
+                        }
+                        sortSelectedRows(checkboxes);
+                        handleCopy(checkboxes, "initial");
                     });
                 }
 
