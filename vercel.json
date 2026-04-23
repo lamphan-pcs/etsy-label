@@ -3,6 +3,14 @@
         { "source": "/merge", "destination": "/api/index.js" },
         { "source": "/analyze", "destination": "/api/index.js" },
         { "source": "/scan-default", "destination": "/api/index.js" },
-        { "source": "/set-input-dir", "destination": "/api/index.js" }
+        { "source": "/set-input-dir", "destination": "/api/index.js" },
+        { "source": "/set-output-dir", "destination": "/api/index.js" },
+        { "source": "/get-output-dir", "destination": "/api/index.js" },
+        { "source": "/set-tiktok-input-dir", "destination": "/api/index.js" },
+        { "source": "/scan-tiktok-default", "destination": "/api/index.js" },
+        { "source": "/merge-tiktok-pairs", "destination": "/api/index.js" },
+        { "source": "/merge-tiktok-bulk", "destination": "/api/index.js" },
+        { "source": "/merge-shopify-bulk", "destination": "/api/index.js" },
+        { "source": "/pick-folder", "destination": "/api/index.js" }
     ]
 }

@@ -25,6 +25,7 @@ const PORT = process.env.PORT || 3000;
 let inputDir = process.env.INPUT_DIR || path.join(__dirname, "input");
 let tiktokInputDir =
     process.env.TIKTOK_INPUT_DIR || process.env.INPUT_DIR || inputDir;
+let outputDir = process.env.OUTPUT_DIR || inputDir;
 
 console.log(`Scanning directory: ${inputDir}`);
 console.log(`Scanning TikTok directory: ${tiktokInputDir}`);
@@ -54,6 +55,34 @@ async function updateEnvFileValue(key, newPath) {
     await fsPromises.writeFile(envPath, envContent);
 }
 
+async function saveToOutputDir(filename, pdfBytes) {
+    if (!outputDir) return false;
+    try {
+        const name = filename.endsWith(".pdf")
+            ? filename.slice(0, -4)
+            : filename;
+        const filePath = path.join(outputDir, name);
+        await fsPromises.writeFile(filePath, pdfBytes);
+        return true;
+    } catch (err) {
+        console.error(`Failed to save ${filename} to output dir:`, err);
+        return false;
+    }
+}
+
+async function saveResultsToOutputDir(results) {
+    if (!outputDir) return;
+    for (const result of results) {
+        if (result.pdfBase64) {
+            const saved = await saveToOutputDir(
+                result.filename,
+                Buffer.from(result.pdfBase64, "base64"),
+            );
+            if (saved) result.savedLocally = true;
+        }
+    }
+}
+
 app.post("/set-input-dir", express.json(), async (req, res) => {
     const { path: newPath } = req.body;
     if (!newPath) {
@@ -74,6 +103,10 @@ app.post("/set-input-dir", express.json(), async (req, res) => {
     try {
         await updateEnvFileValue("INPUT_DIR", newPath);
         inputDir = newPath;
+        // Keep outputDir in sync if it was never explicitly set to something different
+        if (!process.env.OUTPUT_DIR) {
+            outputDir = newPath;
+        }
         console.log(`Updated INPUT_DIR to: ${inputDir}`);
         res.json({ success: true, message: "Directory updated successfully" });
     } catch (err) {
@@ -111,6 +144,56 @@ app.post("/set-tiktok-input-dir", express.json(), async (req, res) => {
             success: false,
             error: "Failed to save configuration",
         });
+    }
+});
+
+app.get("/get-output-dir", (req, res) => {
+    res.json({ outputDir: outputDir || null });
+});
+
+app.post("/set-output-dir", express.json(), async (req, res) => {
+    try {
+        const { path: newPath, clear } = req.body || {};
+
+        if (clear) {
+            outputDir = inputDir;
+            try {
+                await updateEnvFileValue("OUTPUT_DIR", "");
+            } catch (_) {}
+            return res.json({
+                success: true,
+                message: "Output directory reset to input folder",
+            });
+        }
+
+        if (!newPath) {
+            return res
+                .status(400)
+                .json({ success: false, error: "Path is required" });
+        }
+
+        // Create the directory if it doesn't exist
+        if (!fs.existsSync(newPath)) {
+            try {
+                fs.mkdirSync(newPath, { recursive: true });
+            } catch (mkErr) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Could not create directory: ${mkErr.message}`,
+                });
+            }
+        }
+
+        await updateEnvFileValue("OUTPUT_DIR", newPath);
+        outputDir = newPath;
+        console.log(`Updated OUTPUT_DIR to: ${outputDir}`);
+        res.json({
+            success: true,
+            message: "Output directory updated successfully",
+        });
+    } catch (err) {
+        console.error("Failed to update output dir:", err);
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
@@ -249,10 +332,26 @@ async function processFilePairs(fileObjects) {
                 console.log(
                     `Found matching label: ${matchingLabel.originalName}`,
                 );
-                // processLabels now handles picking the right crop based on the slip's ID logic if we pass it,
-                // or it re-extracts. Safe to just call it, but verify latest processor.js logic.
-                // processor.js: "const slipMeta = await extractLabelData(label2Buffer);" -> It re-reads slip buffer to get targetID.
-                // This is fine.
+
+                // Skip re-processing if the output file already exists in outputDir
+                const predictedOutputPath = path.join(outputDir, orderId);
+                if (fs.existsSync(predictedOutputPath)) {
+                    console.log(`Skipping Order ${orderId} — already saved.`);
+                    const maxFileDate = Math.max(
+                        slip.lastModified || 0,
+                        matchingLabel.lastModified || 0,
+                    );
+                    results.push({
+                        filename: orderId,
+                        pdfBase64: null,
+                        metadata: { ...metadata, orderId },
+                        fileDate: maxFileDate,
+                        downloaded: true,
+                        savedLocally: true,
+                    });
+                    continue;
+                }
+
                 const output = await processLabels(
                     matchingLabel.buffer,
                     slip.buffer,
@@ -271,7 +370,7 @@ async function processFilePairs(fileObjects) {
                     filename: output.filename,
                     pdfBase64: Buffer.from(output.pdfBytes).toString("base64"),
                     metadata: output.metadata,
-                    fileDate: maxFileDate, // Pass back for secondary sorting/display
+                    fileDate: maxFileDate,
                     downloaded: fileExists,
                 });
             } else {
@@ -341,14 +440,30 @@ async function processTikTokPairs(fileObjects, sourceDir = null) {
 
         const file1 = fileInfos[0].file;
         const file2 = fileInfos[1].file;
+        const maxFileDate = Math.max(
+            file1.lastModified || 0,
+            file2.lastModified || 0,
+        );
+
+        // Skip re-processing if already saved to outputDir
+        const predictedTikTokPath = path.join(outputDir, orderId);
+        if (fs.existsSync(predictedTikTokPath)) {
+            console.log(`Skipping TikTok Order ${orderId} — already saved.`);
+            results.push({
+                filename: orderId,
+                pdfBase64: null,
+                metadata: { id: orderId, type: "tiktok", orderId },
+                fileDate: maxFileDate,
+                downloaded: true,
+                savedLocally: true,
+            });
+            continue;
+        }
+
         const output = await processTikTokPair(
             file1.buffer,
             file2.buffer,
             orderId,
-        );
-        const maxFileDate = Math.max(
-            file1.lastModified || 0,
-            file2.lastModified || 0,
         );
         const fileExists = sourceDir
             ? await checkFileExistsInDir(output.filename, sourceDir)
@@ -553,6 +668,7 @@ app.get("/scan-default", async (req, res) => {
             return timeB - timeA;
         });
 
+        await saveResultsToOutputDir(results);
         res.json({
             success: true,
             results,
@@ -606,6 +722,7 @@ app.get("/scan-tiktok-default", async (req, res) => {
             tiktokInputDir,
         );
 
+        await saveResultsToOutputDir(results);
         res.json({
             success: true,
             results,
@@ -716,6 +833,7 @@ app.post("/merge-tiktok-pairs", upload.any(), async (req, res) => {
                 .send("Processing failed:\n" + errors.join("\n"));
         }
 
+        await saveResultsToOutputDir(results);
         res.json({
             success: true,
             results,
@@ -751,6 +869,7 @@ app.post("/merge-tiktok-bulk", upload.any(), async (req, res) => {
                 .send("Processing failed:\n" + errors.join("\n"));
         }
 
+        await saveResultsToOutputDir(results);
         res.json({ success: true, results, errors });
     } catch (err) {
         console.error("TikTok bulk error:", err);
@@ -772,6 +891,7 @@ app.post("/merge-shopify-bulk", upload.single("file"), async (req, res) => {
                 .send("Processing failed:\n" + errors.join("\n"));
         }
 
+        await saveResultsToOutputDir(results);
         res.json({ success: true, results, errors });
     } catch (err) {
         console.error("Shopify bulk error:", err);
@@ -945,6 +1065,7 @@ app.post("/merge", upload.any(), async (req, res) => {
                 .send("Processing failed:\n" + errors.join("\n"));
         }
 
+        await saveResultsToOutputDir(results);
         res.json({
             success: true,
             results: results,

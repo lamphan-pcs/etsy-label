@@ -277,6 +277,118 @@
         <div class="container">
             <h1>Croissant</h1>
 
+            <div style="text-align: right; margin-bottom: 0.25rem">
+                <button
+                    type="button"
+                    id="showOutputConfigBtn"
+                    style="
+                        background: none;
+                        border: none;
+                        color: #388e3c;
+                        text-decoration: underline;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    "
+                >
+                    💾 Output Folder
+                </button>
+            </div>
+            <div
+                id="output-config-panel"
+                style="
+                    background: #e8f5e9;
+                    border: 1px solid #a5d6a7;
+                    padding: 1.5rem;
+                    margin-bottom: 1rem;
+                    border-radius: 4px;
+                    display: none;
+                    text-align: center;
+                "
+            >
+                <h3 style="margin-top: 0; color: #2e7d32">
+                    Auto-Save Output Folder
+                </h3>
+                <p style="font-size: 0.9rem; color: #555; margin-top: 0">
+                    When set, processed PDFs are saved directly to this folder —
+                    no browser download dialog.
+                </p>
+                <div
+                    style="
+                        display: flex;
+                        justify-content: center;
+                        gap: 10px;
+                        flex-wrap: wrap;
+                    "
+                >
+                    <input
+                        type="text"
+                        id="outputConfigPathInput"
+                        placeholder="C:\Users\Name\Output Labels"
+                        style="
+                            flex: 1;
+                            max-width: 400px;
+                            padding: 0.5rem;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                        "
+                    />
+                    <button
+                        id="outputBrowseFolderBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.5rem 1rem;
+                            background-color: #eee;
+                            color: #333;
+                            border: 1px solid #ccc;
+                        "
+                        title="Browse Folder"
+                    >
+                        📁 Browse
+                    </button>
+                    <button
+                        id="saveOutputConfigBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.5rem 1.5rem;
+                            background-color: #388e3c;
+                        "
+                    >
+                        Save Folder
+                    </button>
+                    <button
+                        id="clearOutputConfigBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.5rem 1rem;
+                            background-color: #e53935;
+                        "
+                    >
+                        Clear
+                    </button>
+                </div>
+                <p
+                    id="output-config-error"
+                    style="
+                        color: red;
+                        font-size: 0.9rem;
+                        margin-top: 5px;
+                        display: none;
+                    "
+                ></p>
+                <p
+                    id="output-config-status"
+                    style="
+                        color: #2e7d32;
+                        font-size: 0.9rem;
+                        margin-top: 5px;
+                        display: none;
+                    "
+                ></p>
+            </div>
+
             <div
                 class="tab-bar"
                 style="margin-bottom: 1rem; display: flex; gap: 0.5rem"
@@ -1489,6 +1601,32 @@
             const shopifyResetBtn = document.getElementById("shopifyResetBtn");
             const shopifyStatus = document.getElementById("shopifyStatus");
 
+            // Output folder config
+            const showOutputConfigBtn = document.getElementById(
+                "showOutputConfigBtn",
+            );
+            const outputConfigPanel = document.getElementById(
+                "output-config-panel",
+            );
+            const outputConfigPathInput = document.getElementById(
+                "outputConfigPathInput",
+            );
+            const outputBrowseFolderBtn = document.getElementById(
+                "outputBrowseFolderBtn",
+            );
+            const saveOutputConfigBtn = document.getElementById(
+                "saveOutputConfigBtn",
+            );
+            const clearOutputConfigBtn = document.getElementById(
+                "clearOutputConfigBtn",
+            );
+            const outputConfigError = document.getElementById(
+                "output-config-error",
+            );
+            const outputConfigStatus = document.getElementById(
+                "output-config-status",
+            );
+
             // New Bulk Elements
             const bulkDropZone = document.getElementById("bulkDropZone");
             const bulkFilesInput = document.getElementById("bulkFilesInput");
@@ -1552,6 +1690,7 @@
             // Auto Scan on Load
             document.addEventListener("DOMContentLoaded", () => {
                 scanDefaultFolder();
+                setupOutputFolder();
                 setupActionListeners("auto", () => autoScanResults);
                 setupActionListeners("manual", () => manualScanResults);
                 setupActionListeners("bulk", () => bulkScanResults);
@@ -1700,6 +1839,122 @@
                 } else {
                     configError.style.display = "none";
                 }
+            }
+
+            function showOutputConfigError(msg) {
+                if (msg) {
+                    outputConfigError.textContent = msg;
+                    outputConfigError.style.display = "block";
+                    outputConfigStatus.style.display = "none";
+                } else {
+                    outputConfigError.style.display = "none";
+                }
+            }
+
+            function showOutputConfigSuccess(msg) {
+                outputConfigStatus.textContent = msg;
+                outputConfigStatus.style.display = "block";
+                outputConfigError.style.display = "none";
+            }
+
+            function setupOutputFolder() {
+                // Load current output dir
+                fetch("/get-output-dir")
+                    .then((r) => r.json())
+                    .then((data) => {
+                        if (data.outputDir) {
+                            outputConfigPathInput.value = data.outputDir;
+                            showOutputConfigBtn.textContent = `💾 Output: ${data.outputDir}`;
+                        }
+                    })
+                    .catch(() => {});
+
+                showOutputConfigBtn.addEventListener("click", () => {
+                    const isHidden = outputConfigPanel.style.display === "none";
+                    outputConfigPanel.style.display = isHidden
+                        ? "block"
+                        : "none";
+                    if (isHidden) outputConfigPathInput.focus();
+                });
+
+                outputBrowseFolderBtn.addEventListener("click", async () => {
+                    try {
+                        outputBrowseFolderBtn.classList.add("loading");
+                        outputBrowseFolderBtn.disabled = true;
+                        const res = await fetch("/pick-folder");
+                        const data = await res.json();
+                        if (data.success && data.path) {
+                            outputConfigPathInput.value = data.path;
+                        } else if (data.error) {
+                            showOutputConfigError(data.error);
+                        }
+                    } catch (e) {
+                        showOutputConfigError("Could not open folder picker.");
+                    } finally {
+                        outputBrowseFolderBtn.classList.remove("loading");
+                        outputBrowseFolderBtn.disabled = false;
+                    }
+                });
+
+                saveOutputConfigBtn.addEventListener("click", async () => {
+                    const newPath = outputConfigPathInput.value.trim();
+                    if (!newPath) {
+                        showOutputConfigError("Please enter a path.");
+                        return;
+                    }
+                    showOutputConfigError("");
+                    saveOutputConfigBtn.disabled = true;
+                    saveOutputConfigBtn.classList.add("loading");
+                    try {
+                        const res = await fetch("/set-output-dir", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ path: newPath }),
+                        });
+                        let data;
+                        try {
+                            data = await res.json();
+                        } catch (_) {
+                            data = {};
+                        }
+                        if (data.success) {
+                            showOutputConfigSuccess(
+                                `Saved! Files will be auto-saved to: ${newPath}`,
+                            );
+                            showOutputConfigBtn.textContent = `💾 Output: ${newPath}`;
+                        } else {
+                            showOutputConfigError(
+                                data.error || `Server error (${res.status})`,
+                            );
+                        }
+                    } catch (e) {
+                        showOutputConfigError("Network error.");
+                    } finally {
+                        saveOutputConfigBtn.disabled = false;
+                        saveOutputConfigBtn.classList.remove("loading");
+                    }
+                });
+
+                clearOutputConfigBtn.addEventListener("click", async () => {
+                    try {
+                        const res = await fetch("/set-output-dir", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ clear: true }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            outputConfigPathInput.value = "";
+                            showOutputConfigSuccess(
+                                "Reset to input folder (same folder auto-save).",
+                            );
+                            showOutputConfigBtn.textContent =
+                                "💾 Output Folder";
+                        }
+                    } catch (e) {
+                        showOutputConfigError("Network error.");
+                    }
+                });
             }
 
             async function scanDefaultFolder() {
@@ -1988,7 +2243,6 @@
                         const resultIndex = parseInt(cb.dataset.index);
                         if (!isNaN(resultIndex) && results[resultIndex]) {
                             const result = results[resultIndex];
-                            downloadPdf(result.pdfBase64, result.filename);
 
                             // Save download record for this label
                             const meta = result.metadata || {};
@@ -2775,6 +3029,7 @@
 
                 const zip = new JSZip();
                 results.forEach((result) => {
+                    if (!result.pdfBase64) return; // already saved locally, skip
                     const filename = result.filename.replace(/\.pdf$/i, "");
                     const byteCharacters = atob(result.pdfBase64);
                     const byteArray = new Uint8Array(byteCharacters.length);
@@ -2855,7 +3110,11 @@
                 }
 
                 // Check if already downloaded
-                const isDownloaded = result.downloaded ? "Yes" : "No";
+                const isDownloaded = result.savedLocally
+                    ? "✅ Auto-saved"
+                    : result.downloaded
+                      ? "Yes"
+                      : "No";
 
                 const rowValues = [
                     labelCreated,
