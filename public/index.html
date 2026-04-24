@@ -368,6 +368,18 @@
                     >
                         Clear
                     </button>
+                    <button
+                        id="openOutputFolderBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.5rem 1rem;
+                            background-color: #5c6bc0;
+                        "
+                        title="Open output folder in Explorer"
+                    >
+                        📂 Open Folder
+                    </button>
                 </div>
                 <p
                     id="output-config-error"
@@ -456,6 +468,45 @@
                 </div>
                 <div class="config-bar" style="display: none">
                     <!-- Hidden config checkboxed -->
+                </div>
+
+                <div
+                    style="
+                        text-align: center;
+                        margin-bottom: 1rem;
+                        display: flex;
+                        gap: 0.75rem;
+                        justify-content: center;
+                        flex-wrap: wrap;
+                    "
+                >
+                    <button
+                        type="button"
+                        id="labelProcessFolderBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.75rem 2rem;
+                            background-color: #f0541e;
+                            font-size: 1rem;
+                        "
+                    >
+                        ▶ Process Folder
+                    </button>
+                    <button
+                        type="button"
+                        id="moveToOldLabelsBtn"
+                        class="btn"
+                        style="
+                            width: auto;
+                            padding: 0.75rem 1.5rem;
+                            background-color: #757575;
+                            font-size: 1rem;
+                        "
+                        title="Move all source PDFs from input folder to 'old labels' subfolder"
+                    >
+                        📦 Move to Old Labels
+                    </button>
                 </div>
 
                 <!-- Removed Folder Mode UI, replaced with default scan info -->
@@ -1687,9 +1738,12 @@
                 return getDownloadRecord(orderId) !== "-";
             }
 
-            // Auto Scan on Load
+            // Scan on button click, not on load
             document.addEventListener("DOMContentLoaded", () => {
-                scanDefaultFolder();
+                // Archive output files older than 2 days on startup
+                fetch("/archive-old").catch(() => {});
+                // Auto-move source PDFs older than 2 days to 'old labels' on startup
+                fetch("/move-to-old-labels?auto=1").catch(() => {});
                 setupOutputFolder();
                 setupActionListeners("auto", () => autoScanResults);
                 setupActionListeners("manual", () => manualScanResults);
@@ -1702,6 +1756,37 @@
                 setupExcelMerge();
                 setupTikTokTab();
                 setupShopifyTab();
+
+                // Wire up Process Folder button
+                document
+                    .getElementById("labelProcessFolderBtn")
+                    .addEventListener("click", () => {
+                        scanDefaultFolder();
+                    });
+
+                // Wire up Move to Old Labels button
+                document
+                    .getElementById("moveToOldLabelsBtn")
+                    .addEventListener("click", async () => {
+                        const btn =
+                            document.getElementById("moveToOldLabelsBtn");
+                        btn.disabled = true;
+                        btn.textContent = "Moving...";
+                        try {
+                            const res = await fetch("/move-to-old-labels");
+                            const data = await res.json();
+                            btn.textContent =
+                                data.moved > 0
+                                    ? `✅ Moved ${data.moved} file${data.moved !== 1 ? "s" : ""}`
+                                    : "📦 Nothing to Move";
+                        } catch (e) {
+                            btn.textContent = "❌ Error";
+                        }
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.textContent = "📦 Move to Old Labels";
+                        }, 3000);
+                    });
             });
 
             // Reset Handler
@@ -1955,6 +2040,22 @@
                         showOutputConfigError("Network error.");
                     }
                 });
+
+                document
+                    .getElementById("openOutputFolderBtn")
+                    .addEventListener("click", async () => {
+                        try {
+                            const infoRes = await fetch("/get-output-dir");
+                            const info = await infoRes.json();
+                            const folderPath = info.outputDir || "";
+                            await fetch(
+                                "/open-folder?path=" +
+                                    encodeURIComponent(folderPath),
+                            );
+                        } catch (e) {
+                            showOutputConfigError("Could not open folder.");
+                        }
+                    });
             }
 
             async function scanDefaultFolder() {
@@ -3054,6 +3155,7 @@
                 const meta = result.metadata || {};
                 const date = meta.date || "-";
                 const orderId = meta.orderId || meta.id || "-";
+                const isGift = meta.isGift === true;
                 let customerName = meta.buyerName || "-";
                 let mailAccount = meta.buyerUsername || "-";
 
@@ -3822,7 +3924,7 @@
 
                         if (!tiktokScannedOnce) {
                             tiktokScannedOnce = true;
-                            scanTikTokDefaultFolder();
+                            // Do not auto-scan; user clicks "Auto Process Folder"
                         }
                     } else if (tab === "shopify") {
                         labelTab.style.display = "none";

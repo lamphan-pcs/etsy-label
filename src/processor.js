@@ -57,6 +57,9 @@ async function extractLabelData(buffer) {
         if (etsyMatch) {
             const orderId = etsyMatch[1].trim();
 
+            // Detect gift order
+            const isGift = /Marked as gift/i.test(text);
+
             // Extract Date: "Order date\nJan 22, 2026"
             // Matches "Jan 22, 2026" or similar
             const dateMatch = text.match(
@@ -84,6 +87,7 @@ async function extractLabelData(buffer) {
             // Buyer can be either:
             // 1) "Buyer\nFull Name\n(username)"
             // 2) "Buyer username" (username only)
+            // 3) Gift order: no "Buyer" label — username appears on the line right after order ID
             let buyerName = "-";
             let buyerUsername = "-";
 
@@ -104,6 +108,18 @@ async function extractLabelData(buffer) {
                         buyerName = usernameOnly;
                         buyerUsername = usernameOnly;
                     }
+                } else if (isGift) {
+                    // Gift orders: buyer username is on the line immediately after the order ID
+                    // Format: "username (username)" or just "username"
+                    const giftBuyerMatch = text.match(
+                        /Order\s*(?:#|ID)[:\s]*\d+\s*\n\s*(.*?)\s*(?:\(([^)]+)\))?\s*\n/i,
+                    );
+                    if (giftBuyerMatch) {
+                        buyerName = giftBuyerMatch[1].trim() || "-";
+                        buyerUsername = giftBuyerMatch[2]
+                            ? giftBuyerMatch[2].trim()
+                            : buyerName;
+                    }
                 }
             }
 
@@ -123,6 +139,7 @@ async function extractLabelData(buffer) {
                 tracking: tracking,
                 buyerName: buyerName,
                 buyerUsername: buyerUsername,
+                isGift: isGift,
             };
         }
 

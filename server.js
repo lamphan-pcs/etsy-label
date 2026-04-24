@@ -83,6 +83,66 @@ async function saveResultsToOutputDir(results) {
     }
 }
 
+// Move a list of source filenames from sourceDir into sourceDir/old labels/
+async function moveToOldLabels(filenames, sourceDir) {
+    if (!filenames || filenames.length === 0) return;
+    const oldDir = path.join(sourceDir, "old labels");
+    if (!fs.existsSync(oldDir)) {
+        fs.mkdirSync(oldDir, { recursive: true });
+    }
+    for (const name of filenames) {
+        const src = path.join(sourceDir, name);
+        const dest = path.join(oldDir, name);
+        try {
+            if (fs.existsSync(src)) {
+                await fsPromises.rename(src, dest);
+                console.log(`Moved ${name} → old labels`);
+            }
+        } catch (err) {
+            console.warn(`Could not move ${name} to old labels:`, err.message);
+        }
+    }
+}
+
+// Move output files older than 2 days from outputDir into outputDir/old labels/
+async function archiveOldOutputFiles() {
+    if (!outputDir || !fs.existsSync(outputDir)) return;
+    const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const oldDir = path.join(outputDir, "old labels");
+    let moved = 0;
+    try {
+        const entries = await fsPromises.readdir(outputDir, {
+            withFileTypes: true,
+        });
+        for (const entry of entries) {
+            if (!entry.isFile()) continue;
+            // Skip files that look like PDFs or have extensions — output files have no extension
+            const filePath = path.join(outputDir, entry.name);
+            try {
+                const stats = await fsPromises.stat(filePath);
+                if (now - stats.mtimeMs > TWO_DAYS_MS) {
+                    if (!fs.existsSync(oldDir)) {
+                        fs.mkdirSync(oldDir, { recursive: true });
+                    }
+                    const dest = path.join(oldDir, entry.name);
+                    await fsPromises.rename(filePath, dest);
+                    console.log(`Archived old output: ${entry.name}`);
+                    moved++;
+                }
+            } catch (e) {
+                console.warn(
+                    `Archive check failed for ${entry.name}:`,
+                    e.message,
+                );
+            }
+        }
+    } catch (err) {
+        console.warn("archiveOldOutputFiles error:", err.message);
+    }
+    return moved;
+}
+
 app.post("/set-input-dir", express.json(), async (req, res) => {
     const { path: newPath } = req.body;
     if (!newPath) {
@@ -149,6 +209,15 @@ app.post("/set-tiktok-input-dir", express.json(), async (req, res) => {
 
 app.get("/get-output-dir", (req, res) => {
     res.json({ outputDir: outputDir || null });
+});
+
+app.get("/archive-old", async (req, res) => {
+    try {
+        const moved = await archiveOldOutputFiles();
+        res.json({ success: true, moved });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
 });
 
 app.post("/set-output-dir", express.json(), async (req, res) => {
@@ -231,6 +300,7 @@ async function checkFileExistsInDir(filename, directory) {
 async function processFilePairs(fileObjects) {
     const shippingLabels = [];
     const orderSlips = [];
+    const usedSourceFiles = new Set(); // track originals consumed by NEW processing
 
     // Classification with Content Check
     for (const f of fileObjects) {
@@ -341,6 +411,9 @@ async function processFilePairs(fileObjects) {
                         slip.lastModified || 0,
                         matchingLabel.lastModified || 0,
                     );
+                    // Still track source files so they get moved to old labels
+                    usedSourceFiles.add(slip.originalName);
+                    usedSourceFiles.add(matchingLabel.originalName);
                     results.push({
                         filename: orderId,
                         pdfBase64: null,
@@ -366,6 +439,9 @@ async function processFilePairs(fileObjects) {
                 // Check if output file already exists
                 const fileExists = await checkFileExists(output.filename);
 
+                usedSourceFiles.add(slip.originalName);
+                usedSourceFiles.add(matchingLabel.originalName);
+
                 results.push({
                     filename: output.filename,
                     pdfBase64: Buffer.from(output.pdfBytes).toString("base64"),
@@ -384,13 +460,14 @@ async function processFilePairs(fileObjects) {
             errors.push(`Error processing ${slip.originalName}: ${e.message}`);
         }
     }
-    return { results, errors };
+    return { results, errors, usedSourceFiles: [...usedSourceFiles] };
 }
 
 async function processTikTokPairs(fileObjects, sourceDir = null) {
     const groups = new Map();
     const results = [];
     const errors = [];
+    const usedSourceFiles = new Set();
 
     for (const f of fileObjects) {
         try {
@@ -449,6 +526,9 @@ async function processTikTokPairs(fileObjects, sourceDir = null) {
         const predictedTikTokPath = path.join(outputDir, orderId);
         if (fs.existsSync(predictedTikTokPath)) {
             console.log(`Skipping TikTok Order ${orderId} — already saved.`);
+            // Still track source files so they get moved to old labels
+            usedSourceFiles.add(file1.originalName);
+            usedSourceFiles.add(file2.originalName);
             results.push({
                 filename: orderId,
                 pdfBase64: null,
@@ -469,6 +549,9 @@ async function processTikTokPairs(fileObjects, sourceDir = null) {
             ? await checkFileExistsInDir(output.filename, sourceDir)
             : false;
 
+        usedSourceFiles.add(file1.originalName);
+        usedSourceFiles.add(file2.originalName);
+
         results.push({
             filename: output.filename,
             pdfBase64: Buffer.from(output.pdfBytes).toString("base64"),
@@ -484,7 +567,7 @@ async function processTikTokPairs(fileObjects, sourceDir = null) {
         return timeB - timeA;
     });
 
-    return { results, errors };
+    return { results, errors, usedSourceFiles: [...usedSourceFiles] };
 }
 
 async function processTikTokBulk(fileObjects) {
@@ -636,7 +719,6 @@ app.get("/scan-default", async (req, res) => {
             const filePath = path.join(inputDir, file);
             const buffer = await fsPromises.readFile(filePath);
             const stats = await fsPromises.stat(filePath);
-
             fileObjects.push({
                 originalName: file,
                 buffer: buffer,
@@ -709,7 +791,6 @@ app.get("/scan-tiktok-default", async (req, res) => {
             const filePath = path.join(tiktokInputDir, file);
             const buffer = await fsPromises.readFile(filePath);
             const stats = await fsPromises.stat(filePath);
-
             fileObjects.push({
                 originalName: file,
                 buffer,
@@ -733,6 +814,56 @@ app.get("/scan-tiktok-default", async (req, res) => {
         console.error("TikTok scan error:", err);
         res.status(500).send("Scan Error: " + err.message);
     }
+});
+
+// Move source PDFs to 'old labels' subfolder.
+// ?auto=1 → only files older than 2 days. Without → all PDFs.
+app.get("/move-to-old-labels", async (req, res) => {
+    const auto = req.query.auto === "1";
+    const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    let moved = 0;
+    const dirs = [inputDir];
+    if (tiktokInputDir && tiktokInputDir !== inputDir)
+        dirs.push(tiktokInputDir);
+    try {
+        for (const srcDir of dirs) {
+            if (!fs.existsSync(srcDir)) continue;
+            const files = await fsPromises.readdir(srcDir);
+            const pdfs = files.filter((f) => f.toLowerCase().endsWith(".pdf"));
+            for (const file of pdfs) {
+                const filePath = path.join(srcDir, file);
+                if (auto) {
+                    const stats = await fsPromises.stat(filePath);
+                    if (now - stats.mtimeMs < TWO_DAYS_MS) continue;
+                }
+                const oldDir = path.join(srcDir, "old labels");
+                if (!fs.existsSync(oldDir))
+                    fs.mkdirSync(oldDir, { recursive: true });
+                try {
+                    await fsPromises.rename(filePath, path.join(oldDir, file));
+                    moved++;
+                } catch (e) {
+                    console.warn(`Could not move ${file}:`, e.message);
+                }
+            }
+        }
+        res.json({ success: true, moved });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get("/open-folder", (req, res) => {
+    const folderPath = req.query.path || outputDir;
+    if (!folderPath) return res.status(400).json({ error: "No path provided" });
+    exec(`explorer.exe "${folderPath}"`, (error) => {
+        if (error) {
+            console.error("Open folder error:", error);
+            return res.status(500).json({ error: error.message });
+        }
+        res.json({ success: true });
+    });
 });
 
 app.get("/pick-folder", (req, res) => {
